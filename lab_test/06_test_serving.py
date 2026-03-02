@@ -17,12 +17,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)
 
-def wait_for_server(url: str, timeout: int = 20) -> bool:
+def wait_for_server(url: str, timeout: int = 30) -> bool:
+    """Wait for server to be ready (30s timeout for lab cold start)."""
     for i in range(timeout):
         try:
             urllib.request.urlopen(url, timeout=2)
             return True
         except Exception:
+            if (i + 1) % 10 == 0:
+                logger.info("  Still waiting... (%ds elapsed)", i + 1)
             time.sleep(1)
     return False
 

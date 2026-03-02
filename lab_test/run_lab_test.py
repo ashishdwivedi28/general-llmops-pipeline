@@ -316,18 +316,28 @@ def step7_serving(project: str, location: str, port: int = 8080):
             stderr=subprocess.PIPE,
         )
 
-        # Wait for startup
-        for _ in range(10):
+        # Wait for startup (30s timeout for lab cold start)
+        max_retries = 30
+        for attempt in range(max_retries):
             time.sleep(1)
             try:
                 urllib.request.urlopen(f"http://localhost:{port}/health", timeout=2)
                 ok("Step 7 — Serving layer started", f"http://localhost:{port}")
                 return proc
-            except Exception:
-                pass
+            except Exception as e:
+                if attempt % 5 == 0 and attempt > 0:
+                    logger.debug(f"  Still waiting... ({attempt}s elapsed)")
 
-        fail("Step 7 — Serving layer", "server did not start within 10s")
+        # If failed, show server logs for debugging
         proc.terminate()
+        try:
+            _, stderr = proc.communicate(timeout=2)
+            if stderr:
+                logger.error("Server startup error:\n%s", stderr.decode('utf-8', errors='ignore')[:500])
+        except:
+            pass
+
+        fail("Step 7 — Serving layer", f"server did not start within {max_retries}s")
         return None
     except Exception as e:
         fail("Step 7 — Serving layer", str(e))

@@ -81,7 +81,7 @@ class LocalFaissVectorDB:
         """Load documents → chunk → embed → insert into FAISS index.
 
         Args:
-            documents_path: Local folder with PDF/TXT/DOCX files.
+            documents_path: Local folder with TXT files (PDFs not supported in lab).
             chunk_size: Characters per chunk.
             chunk_overlap: Overlap between chunks.
 
@@ -89,12 +89,24 @@ class LocalFaissVectorDB:
             Stats dict.
         """
         import numpy as np
-        from langchain_community.document_loaders import DirectoryLoader
+        from langchain_community.document_loaders import TextLoader
         from langchain_text_splitters import RecursiveCharacterTextSplitter
 
         logger.info("Loading documents from: %s", documents_path)
-        loader = DirectoryLoader(documents_path, show_progress=True)
-        docs = loader.load()
+        
+        # Lab fix: load only .txt files directly (avoids unstructured + spaCy permission issue)
+        docs = []
+        if os.path.isdir(documents_path):
+            for filename in os.listdir(documents_path):
+                if filename.endswith('.txt'):
+                    filepath = os.path.join(documents_path, filename)
+                    try:
+                        loader = TextLoader(filepath, encoding='utf-8')
+                        docs.extend(loader.load())
+                        logger.info("Loaded: %s", filename)
+                    except Exception as e:
+                        logger.warning("Failed to load %s: %s", filename, e)
+        
         logger.info("Loaded %d documents", len(docs))
 
         splitter = RecursiveCharacterTextSplitter(

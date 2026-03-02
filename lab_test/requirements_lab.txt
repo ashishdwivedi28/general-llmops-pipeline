@@ -41,9 +41,8 @@ fastapi>=0.110.0
 uvicorn>=0.29.0
 httpx>=0.27.0
 
-# ---- Document loading ----
-PyPDF2>=3.0.0
-unstructured>=0.12.0
+# ---- Document loading (TXT only in lab — no unstructured/spaCy) ----
+# PyPDF2 removed — use TXT files instead for lab
 
 # ---- Testing ----
 pytest>=8.0.0
@@ -51,3 +50,4 @@ requests>=2.31.0
 
 # ---- Optional: ADK for serving (install separately if API key available) ----
 # google-adk>=1.0.0
+

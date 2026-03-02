@@ -222,13 +222,13 @@ python lab_test/03_test_vector_db.py \
 ```
 
 **What it tests:**
-- Creates sample documents if folder is empty
+- Creates sample documents (`.txt` files) if folder is empty
 - Builds FAISS index with real embeddings
 - Runs 3 test queries
 - Saves index to `/tmp/lab_faiss_index`
 - Reloads and verifies vector count matches
 
-**Expected output:**
+**Important (Lab):** Only `.txt` files are supported in lab tests. This avoids permission issues with `unstructured` library and spaCy model installation. For production, PDFs are supported.
 ```
 [TEST 1] GCP Connectivity... PASS
 [TEST 2] Document Loading... PASS  Chunks: 12
@@ -317,19 +317,21 @@ python lab_test/06_test_serving.py \
 
 **What it tests:**
 - Starts the FastAPI server (`serving/server.py`)
-- Polls `/health` until server is ready
+- Polls `/health` until server is ready (with 30s timeout for lab cold start)
 - Sends a POST to `/chat` with a test question
 - Asserts non-empty response
 
+**Note:** Server startup takes longer in GCP lab due to cold Python imports + Gemini client initialization. Expect 15-30 seconds. If it times out, see [Server Won't Start](#server-wont-start-port-in-use) section.
+
 **Expected output:**
 ```
-[1/4] Starting FastAPI server (port 8080)...
-[2/4] Waiting for server... ready in 4.2s
-[3/4] GET /health... 200 OK {"status": "ok"}
-[4/4] POST /chat... 200 OK
-      Response: "Based on the HR policies, you can request annual leave by..."
-============================================================
-Serving test PASSED
+Starting server on port 8080...
+Waiting for server...
+Server is up!
+Health: {"status": "healthy"}
+✅ /health OK
+Chat response (2500ms): "Based on the HR policies, you can request annual leave by..."
+✅ /chat OK
 ```
 
 ---
@@ -352,18 +354,20 @@ python lab_test/run_lab_test.py \
 |---|---|
 | `--step 3` | Run only step 3 (skips all others) |
 | `--skip-gcs` | Skip GCS test (if bucket not ready) |
-| `--skip-serving` | Skip serving test (if port 8080 busy) |
+| `--skip-serving` | **Skip serving test** (recommended for quick lab validation) |
 | `--port 8081` | Use a different port for serving |
 
-### Skip-GCS Example
+### Skip-Serving Example (Fastest for Lab)
 
 ```bash
 python lab_test/run_lab_test.py \
   --project $PROJECT_ID \
   --location $LOCATION \
   --bucket $BUCKET \
-  --skip-gcs
+  --skip-serving
 ```
+
+This validates all 6 core steps (GCP, GCS, Gemini, FAISS, evaluation) without waiting for server startup. **Best for quick lab verification.**
 
 ### Run Only RAG step
 
@@ -377,19 +381,55 @@ python lab_test/run_lab_test.py \
 
 ### Full Run Expected Output
 
+**Fast path (6/7 core tests, no server):**
+
+```bash
+python lab_test/run_lab_test.py \
+  --project $PROJECT_ID \
+  --location $LOCATION \
+  --bucket $BUCKET \
+  --skip-serving
+```
+
 ```
 ============================================================
 LLMOps Lab Test Runner
-Project: qwiklabs-gcp-01-abc123   Location: us-central1
+Project: qwiklabs-gcp-03-abc123   Location: us-central1
 ============================================================
 
-[Step 1/8] GCP Connectivity...          PASS
-[Step 2/8] GCS Bucket...                PASS
-[Step 3/8] Gemini API...                PASS
-[Step 4/8] Feature Eng (FAISS build)... PASS   12 chunks, 12 vectors
-[Step 5/8] Dataset Generation...        PASS   2 QA pairs saved
-[Step 6/8] Evaluation...                PASS   avg score: 4.17/5
-[Step 7/8] Serving (start server)...    PASS   ready in 4.2s
+[Step 1/6] GCP Connectivity...          PASS
+[Step 2/6] GCS Bucket...                PASS
+[Step 3/6] Gemini API...                PASS
+[Step 4/6] Feature Eng (FAISS build)... PASS   12 chunks, 12 vectors
+[Step 5/6] Dataset Generation...        PASS   2 QA pairs saved
+[Step 6/6] Evaluation...                PASS   avg score: 4.17/5
+
+============================================================
+RESULTS (No Serving)
+  Passed:  6 / 6
+  Skipped: 1 / 7 (serving)
+  
+ALL CORE TESTS PASSED — Lab validation complete!
+============================================================
+```
+
+**Full run with serving (all 7 steps):**
+
+Expected time: ~1-2 minutes (first 6 steps ~40s + server startup 15-30s).
+
+```
+============================================================
+LLMOps Lab Test Runner
+Project: qwiklabs-gcp-03-abc123   Location: us-central1
+============================================================
+
+[Step 1/7] GCP Connectivity...          PASS
+[Step 2/7] GCS Bucket...                PASS
+[Step 3/7] Gemini API...                PASS
+[Step 4/7] Feature Eng (FAISS build)... PASS   12 chunks, 12 vectors
+[Step 5/7] Dataset Generation...        PASS   2 QA pairs saved
+[Step 6/7] Evaluation...                PASS   avg score: 4.17/5
+[Step 7/7] Serving (start server)...    PASS   ready in 22.5s
 [Step 8/8] Chat Test...                 PASS
 
 ============================================================
@@ -478,15 +518,36 @@ pip install faiss-cpu
 
 ---
 
-### `ModuleNotFoundError: No module named 'langchain_community'`
+### `ModuleNotFoundError: No module named 'unstructured'`
 
 ```bash
-pip install langchain-community langchain-text-splitters
+pip install unstructured PyPDF2
 ```
+
+Or: Remove PDFs from `data/documents/` and use only `.txt` files (recommended for lab).
 
 ---
 
-### Quota Exceeded on Embeddings
+### `RuntimeError: Failed to install en_core_web_sm` / spaCy Permission Error
+
+```
+PermissionError: [Errno 13] Permission denied: '/usr/local/lib/python3.12/dist-packages/en_core_web_sm'
+```
+
+**Fix:** The `unstructured` library tries to install spaCy models to a system directory. In the lab, this fails due to write restrictions.
+
+**Solution:** Use only `.txt` files instead of PDFs:
+```bash
+# Remove any PDFs
+rm data/documents/*.pdf
+
+# Add only .txt files
+cp ~/my-docs/*.txt data/documents/
+```
+
+Then re-run the test. The lab version of `local_vector_db.py` is optimized for `.txt` files and avoids the `unstructured` library entirely.
+
+---
 
 ```
 ResourceExhausted: 429 Quota exceeded for quota metric...
@@ -502,21 +563,41 @@ Or reduce document length and count.
 
 ---
 
-### Server Won't Start (Port in Use)
+### Server Won't Start (Timeout / Takes > 30s)
 
 ```
-OSError: [Errno 98] Address already in use
+Server did not start within 10s
 ```
 
-**Fix:** Use a different port:
-```bash
-python lab_test/run_lab_test.py --project $PROJECT_ID ... --port 8081
-```
+**Root cause:** FastAPI server cold start in GCP lab takes 15–30 seconds due to Python imports + Gemini client initialization. The old timeout was too short.
 
-Or kill the existing process:
-```bash
-fuser -k 8080/tcp
-```
+**Fix:** This has been fixed in the latest code — timeout increased from 10s → 30s.
+
+If you still see this error:
+
+1. **Run with `--skip-serving`** (fastest workaround):
+   ```bash
+   python lab_test/run_lab_test.py --project $PROJECT_ID ... --skip-serving
+   ```
+   This validates all core RAG logic (steps 1–6) without testing the server.
+
+2. **Test serving separately** (if you want to debug):
+   ```bash
+   # In terminal 1 — start server manually
+   python -m uvicorn serving.server:app --host 0.0.0.0 --port 8080
+
+   # In terminal 2 — test with external flag
+   python lab_test/06_test_serving.py \
+     --project $PROJECT_ID \
+     --location $LOCATION \
+     --external-server \
+     --port 8080
+   ```
+
+3. **Check server logs** — The updated code now prints server startup errors:
+   ```bash
+   python lab_test/run_lab_test.py ... 2>&1 | grep "Server startup error"
+   ```
 
 ---
 
@@ -569,8 +650,8 @@ By default, the test scripts create 3 sample HR/IT policy documents. Replace the
 # Remove sample documents
 rm data/documents/*.txt
 
-# Add your own (supports .txt, .pdf, .md)
-cp ~/my-docs/*.pdf data/documents/
+# Add your own TXT files (PDF not supported in lab due to permission restrictions)
+cp ~/my-docs/*.txt data/documents/
 ```
 
 Then rebuild the FAISS index:
@@ -580,16 +661,16 @@ python lab_test/03_test_vector_db.py \
   --docs-path data/documents
 ```
 
-**Supported formats:**
-- `.txt` — plain text
-- `.pdf` — requires `PyPDF2` or `unstructured`
-- `.md` — markdown files
+**Supported formats (Lab):**
+- `.txt` — plain text (RECOMMENDED for lab)
+
+**Note:** PDFs are not supported in GCP lab tests to avoid `unstructured` library + spaCy model permission issues. For production use, convert PDFs to text first, or the production code handles PDF parsing natively.
 
 **Tips for good retrieval:**
 - Each document should be 500–3000 words
 - Keep documents focused on one topic each
 - Use clear headers and sections
-- Avoid images-only PDFs (no extractable text)
+- Save as UTF-8 `.txt` files
 
 ---
 
