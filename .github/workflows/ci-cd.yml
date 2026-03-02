@@ -1,0 +1,255 @@
+# ==============================================================================
+# GitHub Actions — CI/CD Pipeline for LLMOps
+# ==============================================================================
+# Stages:
+#   1. Lint & Test (on every push/PR)
+#   2. Build Docker image → push to Artifact Registry
+#   3. Deploy to Cloud Run (dev → staging → prod with approval gates)
+#   4. Compile & submit Vertex AI Pipelines
+# ==============================================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      run_pipeline:
+        description: "Submit Vertex AI Pipeline after deploy?"
+        required: false
+        default: false
+        type: boolean
+
+# Prevent concurrent deployments
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION || 'us-central1' }}
+  ARTIFACT_REGISTRY: ${{ secrets.ARTIFACT_REGISTRY }}
+  IMAGE_NAME: llmops-agent
+
+jobs:
+  # ---- Stage 1: Lint & Test --------------------------------------------------
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[dev]"
+
+      - name: Lint with ruff
+        run: |
+          uv pip install --system ruff
+          ruff check src/ serving/ kfp_pipelines/
+
+      - name: Type check with mypy
+        run: |
+          uv pip install --system mypy
+          mypy src/ --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Run tests
+        run: |
+          uv pip install --system pytest pytest-cov
+          pytest tests/ -v --cov=src/llmops_pipeline --cov-report=xml
+        continue-on-error: true
+
+  # ---- Stage 2: Build & Push Docker Image ------------------------------------
+  build:
+    name: Build Docker Image
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      id-token: write  # Required for WIF
+
+    outputs:
+      image_digest: ${{ steps.build.outputs.digest }}
+      image_uri: ${{ steps.meta.outputs.image_uri }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Generate image metadata
+        id: meta
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          IMAGE_URI="${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}"
+          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        id: build
+        run: |
+          docker build \
+            --tag ${{ steps.meta.outputs.image_uri }} \
+            --tag ${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --build-arg BUILD_SHA=${{ github.sha }} \
+            .
+          docker push ${{ steps.meta.outputs.image_uri }}
+          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+          # Capture immutable digest
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ steps.meta.outputs.image_uri }} | cut -d@ -f2)
+          echo "digest=${DIGEST}" >> $GITHUB_OUTPUT
+
+  # ---- Stage 3a: Deploy to Dev -----------------------------------------------
+  deploy-dev:
+    name: Deploy → Dev
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    permissions:
+      contents: read
+      id-token: write
+    environment: dev
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run (dev)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: llmops-agent-dev
+          region: ${{ env.REGION }}
+          image: ${{ needs.build.outputs.image_uri }}
+          flags: |
+            --service-account=llmops-agent-dev@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --set-env-vars=GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=${{ env.REGION }}
+
+  # ---- Stage 3b: Deploy to Staging -------------------------------------------
+  deploy-staging:
+    name: Deploy → Staging
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    permissions:
+      contents: read
+      id-token: write
+    environment: staging
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run (staging)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: llmops-agent-staging
+          region: ${{ env.REGION }}
+          image: ${{ needs.build.outputs.image_uri }}
+          flags: |
+            --service-account=llmops-agent-staging@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --set-env-vars=GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=${{ env.REGION }}
+
+  # ---- Stage 3c: Deploy to Production (manual approval) ----------------------
+  deploy-prod:
+    name: Deploy → Production
+    needs: [build, deploy-staging]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: prod
+      # Requires manual approval in GitHub Environment settings
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run (prod)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: llmops-agent-prod
+          region: ${{ env.REGION }}
+          image: ${{ needs.build.outputs.image_uri }}
+          flags: |
+            --service-account=llmops-agent-prod@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --set-env-vars=GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=${{ env.REGION }}
+            --min-instances=1
+
+  # ---- Stage 4: Submit Vertex AI Pipeline ------------------------------------
+  submit-pipeline:
+    name: Submit Vertex AI Pipeline
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    if: github.event.inputs.run_pipeline == 'true'
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install kfp google-cloud-aiplatform
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Compile and submit master pipeline
+        run: |
+          python -m kfp_pipelines.compile_and_run \
+            --pipeline master \
+            --project ${{ env.PROJECT_ID }} \
+            --bucket ${{ secrets.GCS_BUCKET }} \
+            --location ${{ env.REGION }}

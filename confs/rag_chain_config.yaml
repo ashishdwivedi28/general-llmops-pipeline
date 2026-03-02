@@ -1,0 +1,50 @@
+# RAG Chain Configuration
+# This config is loaded by the serving layer and evaluation pipelines
+
+use_case: "rag_support_bot"
+
+model:
+  name: "gemini-2.0-flash"
+  temperature: 0.1
+  max_output_tokens: 2048
+
+embedding:
+  model: "text-embedding-004"
+  dimensions: 768
+
+retriever:
+  top_k: 10
+  score_threshold: 0.6
+  index_endpoint_name: ""  # Filled automatically by Pipeline 1
+
+guardrails:
+  enabled: true
+  topic_validation: true
+  valid_topics:
+    - "company policies"
+    - "HR"
+    - "employee benefits"
+    - "onboarding"
+    - "technical documentation"
+  invalid_topics:
+    - "politics"
+    - "personal advice"
+    - "sports"
+  pii_detection: true
+  pii_info_types:
+    - "PERSON_NAME"
+    - "EMAIL_ADDRESS"
+    - "PHONE_NUMBER"
+    - "CREDIT_CARD_NUMBER"
+
+prompts:
+  system: |
+    You are a helpful assistant. Answer questions using ONLY the provided context.
+    If the context does not contain the answer, say "I don't have enough information to answer that."
+    Always cite the source document when possible.
+  query_rewriter: |
+    Given the chat history and the latest question, rewrite the question to be standalone.
+    Chat history: {chat_history}
+    Question: {question}
+    Standalone question:
+  refusal: "I can only help with topics related to our organization. Please ask a relevant question."

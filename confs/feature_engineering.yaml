@@ -1,0 +1,12 @@
+# Feature Engineering Pipeline Config
+job:
+  KIND: FeatureEngineeringJob
+  embedding_model: "text-embedding-004"
+  embedding_dimensions: 768
+  gcs_documents_path: "gs://${GCP_PROJECT_ID}-llmops/documents/"
+  gcs_embeddings_path: "gs://${GCP_PROJECT_ID}-llmops/embeddings/"
+  collection_name: "default-collection"
+  chunk_size: 1000
+  chunk_overlap: 200
+  index_display_name: "llmops-vector-index"
+  index_endpoint_display_name: "llmops-vector-endpoint"

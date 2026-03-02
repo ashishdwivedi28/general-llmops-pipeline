@@ -1,0 +1,66 @@
+[tool.poetry]
+name = "llmops-pipeline"
+version = "0.1.0"
+description = "General-purpose, config-driven LLMOps pipeline on GCP"
+authors = ["Ashish Dwivedi"]
+readme = "README.md"
+packages = [
+    { include = "llmops_pipeline", from = "src" },
+]
+
+[tool.poetry.scripts]
+llmops = "llmops_pipeline.scripts:main"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+# GCP
+google-cloud-aiplatform = ">=1.60.0"
+google-cloud-storage = ">=2.16.0"
+google-cloud-logging = ">=3.10.0"
+google-cloud-dlp = ">=3.15.0"
+google-cloud-secret-manager = ">=2.18.0"
+# LangChain
+langchain = ">=0.2.0"
+langchain-google-vertexai = ">=1.0.0"
+langchain-community = ">=0.2.0"
+langchain-text-splitters = ">=0.2.0"
+# ADK
+google-adk = ">=1.0.0"
+# Config + Validation
+omegaconf = ">=2.3.0"
+pydantic = ">=2.6.0"
+pydantic-settings = ">=2.2.0"
+python-dotenv = ">=1.0.0"
+# Logging
+loguru = ">=0.7.0"
+# Server
+fastapi = ">=0.110.0"
+uvicorn = ">=0.29.0"
+# Pipeline orchestration
+kfp = ">=2.7.0"
+google-cloud-pipeline-components = ">=2.14.0"
+# Observability
+opentelemetry-api = ">=1.24.0"
+opentelemetry-sdk = ">=1.24.0"
+opentelemetry-exporter-gcp-trace = ">=1.6.0"
+# Utilities
+PyPDF2 = ">=3.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0.0"
+pytest-cov = ">=5.0.0"
+ruff = ">=0.4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

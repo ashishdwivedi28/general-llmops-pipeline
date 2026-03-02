@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+myenv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Compiled pipelines
+compiled_pipelines/
+
+# Data (keep structure, ignore content)
+data/documents/*
+data/datasets/*.csv
+data/datasets/*.json
+!data/documents/.gitkeep
+!data/datasets/.gitkeep
+
+# GCP credentials
+*.json
+!package.json
+service-account-key.json
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfplan
+
+# Docker
+*.tar
+
+# Poetry
+poetry.lock
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# ML artifacts
+mlruns/
+outputs/

@@ -1,0 +1,14 @@
+# Deployment Pipeline Config
+job:
+  KIND: DeploymentJob
+  model_display_name: "llmops-rag-chatbot"
+  staging_label: "champion"
+  production_label: "production"
+  qa_dataset_path: "gs://${GCP_PROJECT_ID}-llmops/datasets/rag_eval.csv"
+  model_config_path: "confs/rag_chain_config.yaml"
+  metric_thresholds:
+    answer_relevance: 0.70
+    faithfulness: 0.65
+    readability: 5.0
+    toxicity: 0.10
+  automatic_deployment: true

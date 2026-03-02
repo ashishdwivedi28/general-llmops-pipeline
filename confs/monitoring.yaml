@@ -1,0 +1,11 @@
+# Monitoring Pipeline Config
+job:
+  KIND: MonitoringJob
+  model_display_name: "llmops-rag-chatbot"
+  monitoring_window_days: 7
+  metric_thresholds:
+    answer_relevance: 0.70
+    faithfulness: 0.65
+    toxicity: 0.10
+  alert_on_degradation: true
+  retrigger_feature_engineering: true

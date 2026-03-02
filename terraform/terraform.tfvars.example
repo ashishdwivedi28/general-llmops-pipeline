@@ -1,0 +1,15 @@
+# ==============================================================================
+# Terraform Variables — customize per environment
+# ==============================================================================
+# Copy this file to terraform.tfvars and fill in values.
+# ==============================================================================
+
+project_id  = "your-gcp-project-id"
+region      = "us-central1"
+environment = "dev"
+
+# Docker image — set after first CI/CD build
+# agent_image = "us-central1-docker.pkg.dev/your-project/llmops-agent-dev/agent:latest"
+
+# GitHub repo for WIF (optional — set to enable CI/CD auth)
+# github_repo = "your-org/your-repo"
