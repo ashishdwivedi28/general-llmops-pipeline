@@ -52,6 +52,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate required secrets
+        run: |
+          MISSING=""
+          [ -z "${{ secrets.GCP_PROJECT_ID }}" ]       && MISSING="${MISSING} GCP_PROJECT_ID"
+          [ -z "${{ secrets.ARTIFACT_REGISTRY }}" ]    && MISSING="${MISSING} ARTIFACT_REGISTRY"
+          [ -z "${{ secrets.WIF_PROVIDER }}" ]         && MISSING="${MISSING} WIF_PROVIDER"
+          [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ]  && MISSING="${MISSING} WIF_SERVICE_ACCOUNT"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required GitHub Secrets:${MISSING}"
+            echo "Go to: GitHub repo → Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+          echo "All required secrets are present."
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -106,26 +120,33 @@ jobs:
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+        run: |
+          # Extract the region hostname from ARTIFACT_REGISTRY
+          # e.g. "us-central1-docker.pkg.dev/project/repo" → "us-central1-docker.pkg.dev"
+          REGISTRY_HOST=$(echo "${{ env.ARTIFACT_REGISTRY }}" | cut -d'/' -f1)
+          gcloud auth configure-docker ${REGISTRY_HOST} --quiet
 
       - name: Generate image metadata
         id: meta
         run: |
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           IMAGE_URI="${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}"
+          IMAGE_LATEST="${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
           echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          echo "image_latest=${IMAGE_LATEST}" >> $GITHUB_OUTPUT
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "Building: ${IMAGE_URI}"
 
       - name: Build and push Docker image
         id: build
         run: |
           docker build \
             --tag ${{ steps.meta.outputs.image_uri }} \
-            --tag ${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --tag ${{ steps.meta.outputs.image_latest }} \
             --build-arg BUILD_SHA=${{ github.sha }} \
             .
           docker push ${{ steps.meta.outputs.image_uri }}
-          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ steps.meta.outputs.image_latest }}
 
           # Capture immutable digest
           DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ steps.meta.outputs.image_uri }} | cut -d@ -f2)
@@ -156,7 +177,7 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ needs.build.outputs.image_uri }}
           flags: |
-            --service-account=llmops-agent-dev@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
             --set-env-vars=GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=${{ env.REGION }}
 
   # ---- Stage 3b: Deploy to Staging -------------------------------------------
@@ -184,7 +205,7 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ needs.build.outputs.image_uri }}
           flags: |
-            --service-account=llmops-agent-staging@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
             --set-env-vars=GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=${{ env.REGION }}
 
   # ---- Stage 3c: Deploy to Production (manual approval) ----------------------
@@ -214,7 +235,7 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ needs.build.outputs.image_uri }}
           flags: |
-            --service-account=llmops-agent-prod@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
             --set-env-vars=GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=${{ env.REGION }}
             --min-instances=1
 
