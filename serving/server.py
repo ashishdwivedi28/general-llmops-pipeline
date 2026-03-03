@@ -160,7 +160,11 @@ def create_app() -> FastAPI:
             latency_ms=latency_ms,
         )
 
-        return {"response": response_text, "session_id": session_id, "latency_ms": round(latency_ms, 2)}
+        return {
+            "response": response_text,
+            "session_id": session_id,
+            "latency_ms": round(latency_ms, 2),
+        }
 
     return app
 

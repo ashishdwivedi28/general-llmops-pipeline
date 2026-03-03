@@ -58,7 +58,9 @@ def monitor_production_quality(
         return json.dumps({"degraded": False, "status": "no_qa_pairs", "num_traces": 0})
 
     # Evaluate with Gemini
-    judge = ChatVertexAI(model_name="gemini-2.0-flash", temperature=0.0, project=project, location=location)
+    judge = ChatVertexAI(
+        model_name="gemini-2.0-flash", temperature=0.0, project=project, location=location
+    )
 
     scores = {"answer_relevance": [], "faithfulness": [], "toxicity": []}
     for pair in qa_pairs[:100]:
@@ -104,7 +106,7 @@ def monitoring_pipeline(
     log_filter: str = 'resource.type="cloud_run_revision" AND jsonPayload.type="inference"',
 ):
     """Monitoring Pipeline — runs on Vertex AI Pipelines."""
-    monitor_task = monitor_production_quality(
+    monitor_production_quality(
         project=project,
         location=location,
         monitoring_window_days=monitoring_window_days,

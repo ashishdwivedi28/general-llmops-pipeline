@@ -45,7 +45,11 @@ class PostDeployEvalJob(Job, frozen=True):
 
     def run(self) -> Locals:
         logger = self.logger_service.logger()
-        logger.info("Monitoring evaluation for: {} (last {} days)", self.model_display_name, self.monitoring_window_days)
+        logger.info(
+            "Monitoring evaluation for: {} (last {} days)",
+            self.model_display_name,
+            self.monitoring_window_days,
+        )
 
         # Pull traces from Cloud Logging
         client = cloud_logging.Client(project=self.project)
@@ -90,7 +94,11 @@ class PostDeployEvalJob(Job, frozen=True):
             location=self.location,
         )
 
-        scores: dict[str, list[float]] = {"answer_relevance": [], "faithfulness": [], "toxicity": []}
+        scores: dict[str, list[float]] = {
+            "answer_relevance": [],
+            "faithfulness": [],
+            "toxicity": [],
+        }
         for pair in qa_pairs:
             eval_prompt = (
                 f"Evaluate this production response on a scale of 0.0 to 1.0.\n\n"

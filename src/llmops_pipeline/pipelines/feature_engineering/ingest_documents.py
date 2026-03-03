@@ -63,5 +63,9 @@ class IngestDocumentsJob(Job, frozen=True):
                 "chunk_overlap": str(self.chunk_overlap),
             })
 
-        logger.info("Ingestion complete: {} docs → {} chunks", stats["num_documents"], stats["num_chunks"])
+        logger.info(
+            "Ingestion complete: {} docs \u2192 {} chunks",
+            stats["num_documents"],
+            stats["num_chunks"],
+        )
         return stats

@@ -92,7 +92,9 @@ def evaluate_model(
         return json.dumps({"decision": "BLOCKED", "reason": "empty_dataset"})
 
     # Evaluate with Gemini-as-judge
-    judge = ChatVertexAI(model_name="gemini-2.0-flash", temperature=0.0, project=project, location=location)
+    judge = ChatVertexAI(
+        model_name="gemini-2.0-flash", temperature=0.0, project=project, location=location
+    )
 
     scores = {"answer_relevance": [], "faithfulness": [], "toxicity": []}
     for pair in qa_pairs[:50]:  # cap at 50 for cost
@@ -137,6 +139,7 @@ def promote_model(
 ) -> str:
     """Promote model to production if eval passed."""
     import json
+
     from google.cloud import aiplatform
 
     aiplatform.init(project=project, location=location)

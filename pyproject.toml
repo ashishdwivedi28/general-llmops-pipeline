@@ -61,6 +61,7 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+ignore = ["I001"]  # import sorting: logical grouping takes priority over strict alpha order
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

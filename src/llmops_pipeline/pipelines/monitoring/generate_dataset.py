@@ -48,7 +48,9 @@ class GenerateDatasetJob(Job, frozen=True):
         # Load documents using simple file reading (no unstructured/spaCy needed)
         raw_docs = []
         if os.path.isdir(self.gcs_documents_path):
-            for filepath in glob.glob(os.path.join(self.gcs_documents_path, "**/*"), recursive=True):
+            for filepath in glob.glob(
+                os.path.join(self.gcs_documents_path, "**/*"), recursive=True
+            ):
                 if os.path.isfile(filepath) and not filepath.endswith(".gitkeep"):
                     try:
                         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
@@ -96,7 +98,10 @@ class GenerateDatasetJob(Job, frozen=True):
 
         # Write CSV
         with open(self.output_csv_path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["question", "expected_answer", "context", "source"])
+            writer = csv.DictWriter(
+                f,
+                fieldnames=["question", "expected_answer", "context", "source"],
+            )
             writer.writeheader()
             writer.writerows(qa_pairs)
 

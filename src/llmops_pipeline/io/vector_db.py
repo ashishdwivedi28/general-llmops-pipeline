@@ -53,7 +53,7 @@ class VertexVectorSearch:
 
     def _seed_empty_embeddings(self, gcs_bucket: str, gcs_prefix: str = "embeddings") -> str:
         """Upload a single seed embedding to GCS so create_tree_ah_index has valid data.
-        
+
         Vertex AI requires contents_delta_uri to point to a non-empty GCS path
         with at least one valid JSONL record.
         """
@@ -80,7 +80,7 @@ class VertexVectorSearch:
         approximate_neighbors_count: int = 10,
     ) -> aiplatform.MatchingEngineIndex:
         """Create a new tree-AH index for approximate nearest-neighbour search.
-        
+
         First checks if an index with this display_name already exists.
         If so, returns the existing one. Otherwise creates a new index.
         """
@@ -116,7 +116,7 @@ class VertexVectorSearch:
         deployed_index_id: str = "deployed_index",
     ) -> aiplatform.MatchingEngineIndexEndpoint:
         """Deploy an index to an endpoint for online serving.
-        
+
         Checks if endpoint already exists. If so, returns existing.
         """
         logger.info(f"Looking for existing endpoint: {endpoint_display_name}")
@@ -134,7 +134,7 @@ class VertexVectorSearch:
             display_name=endpoint_display_name,
             public_endpoint_enabled=True,
         )
-        logger.info(f"Deploying index to endpoint...")
+        logger.info("Deploying index to endpoint...")
         endpoint.deploy_index(
             index=index,
             deployed_index_id=deployed_index_id,
@@ -154,8 +154,8 @@ class VertexVectorSearch:
 
         Returns dict with stats: num_documents, num_chunks, gcs_uri.
         """
-        import os
         import glob
+        import os
 
         logger.info(f"Loading documents from: {document_path}")
 
@@ -191,7 +191,10 @@ class VertexVectorSearch:
 
         # Split using raw text
         from langchain.schema import Document as LCDocument
-        lc_docs = [LCDocument(page_content=d["page_content"], metadata=d["metadata"]) for d in documents]
+        lc_docs = [
+            LCDocument(page_content=d["page_content"], metadata=d["metadata"])
+            for d in documents
+        ]
         chunks = splitter.split_documents(lc_docs)
         logger.info(f"Split into {len(chunks)} chunks")
 

@@ -13,14 +13,14 @@ from __future__ import annotations
 
 from kfp import dsl
 
+from kfp_pipelines.deployment import (
+    evaluate_model,
+    promote_model,
+    register_model,
+)
 from kfp_pipelines.feature_engineering import (
     create_vector_db,
     ingest_documents,
-)
-from kfp_pipelines.deployment import (
-    register_model,
-    evaluate_model,
-    promote_model,
 )
 from kfp_pipelines.monitoring import (
     monitor_production_quality,

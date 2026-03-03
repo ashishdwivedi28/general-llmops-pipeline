@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import typing as T
 
 from google.cloud import aiplatform
@@ -74,12 +75,13 @@ class EvaluateAndDeployJob(Job, frozen=True):
                 f"Question: {pair.get('question', '')}\n"
                 f"Expected: {pair.get('expected_answer', '')}\n"
                 f"Actual: {pair.get('actual_answer', pair.get('expected_answer', ''))}\n\n"
-                f"Rate answer_relevance (0-1), faithfulness (0-1), toxicity (0-1, lower is better).\n"
-                f"Respond as JSON: {{\"answer_relevance\": X, \"faithfulness\": X, \"toxicity\": X}}"
+                f"Rate answer_relevance (0-1), faithfulness (0-1),"
+                f" toxicity (0-1, lower is better).\n"
+                f'Respond as JSON: {{"answer_relevance": X,'
+                f' "faithfulness": X, "toxicity": X}}'
             )
             try:
                 response = judge.invoke(eval_prompt)
-                import json
                 eval_scores = json.loads(response.content)
                 for metric in scores:
                     scores[metric].append(float(eval_scores.get(metric, 0.0)))

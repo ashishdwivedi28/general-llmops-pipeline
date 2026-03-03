@@ -24,14 +24,14 @@ Response format:
 - Keep responses focused and relevant to the question asked.
 """
 
-QUERY_REWRITER_PROMPT = """Rewrite the following user query to be more specific and suitable 
+QUERY_REWRITER_PROMPT = """Rewrite the following user query to be more specific and suitable
 for semantic search retrieval. Maintain the original intent but make it clearer.
 
 Original query: {query}
 
 Rewritten query:"""
 
-REFUSAL_PROMPT = """I'm sorry, but I can only help with topics related to the configured 
+REFUSAL_PROMPT = """I'm sorry, but I can only help with topics related to the configured
 knowledge base. Could you please rephrase your question or ask about a different topic?"""
 
 

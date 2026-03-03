@@ -13,10 +13,10 @@ import os
 from google.cloud import aiplatform
 from kfp import compiler
 
-from kfp_pipelines.feature_engineering import feature_engineering_pipeline
 from kfp_pipelines.deployment import deployment_pipeline
-from kfp_pipelines.monitoring import monitoring_pipeline
+from kfp_pipelines.feature_engineering import feature_engineering_pipeline
 from kfp_pipelines.master import master_pipeline
+from kfp_pipelines.monitoring import monitoring_pipeline
 
 PIPELINE_REGISTRY = {
     "feature_engineering": feature_engineering_pipeline,

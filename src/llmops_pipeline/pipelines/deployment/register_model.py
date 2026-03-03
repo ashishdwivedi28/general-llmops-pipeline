@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import typing as T
 
 from google.cloud import aiplatform
