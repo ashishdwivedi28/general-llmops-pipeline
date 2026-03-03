@@ -14,7 +14,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app
 
 # Copy dependency files first (Docker cache optimization)
-COPY pyproject.toml poetry.toml ./
+COPY pyproject.toml poetry.toml README.md ./
 
 # Copy source code (needed for editable install resolution)
 COPY src/ src/
@@ -25,7 +25,7 @@ COPY kfp_pipelines/ kfp_pipelines/
 # Install project + all dependencies in one step.
 # pyproject.toml uses Poetry format ([tool.poetry.dependencies]), so we invoke
 # the Poetry build backend via uv — this resolves all deps correctly.
-RUN uv pip install --system --no-cache-dir -e .
+RUN uv pip install --system --no-cache-dir .
 
 # --- Stage 2: Production ----------------------------------------------------
 FROM python:3.11-slim AS production
