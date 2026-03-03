@@ -35,7 +35,6 @@ class FeatureEngineeringJob(Job, frozen=True):
     chunk_overlap: int = 200
     index_display_name: str = "llmops-vector-index"
     endpoint_display_name: str = "llmops-vector-endpoint"
-    gcs_embeddings_path: str = ""  # gs://bucket/embeddings/
 
     def run(self) -> Locals:
         logger = self.logger_service.logger()
@@ -50,9 +49,10 @@ class FeatureEngineeringJob(Job, frozen=True):
             project=self.project,
             location=self.location,
             index_display_name=self.index_display_name,
-            endpoint_display_name=self.endpoint_display_name,
+            index_endpoint_display_name=self.endpoint_display_name,
             embedding_model=self.embedding_model,
             embedding_dimensions=self.embedding_dimensions,
+            gcs_bucket=self.gcs_bucket,
         )
         with create_job as runner:
             db_result = runner.run()
@@ -68,9 +68,8 @@ class FeatureEngineeringJob(Job, frozen=True):
             vertex_ai_service=self.vertex_ai_service,
             project=self.project,
             location=self.location,
-            documents_path=self.documents_path,
+            document_path=self.documents_path,
             gcs_bucket=self.gcs_bucket,
-            gcs_embeddings_path=self.gcs_embeddings_path,
             embedding_model=self.embedding_model,
             embedding_dimensions=self.embedding_dimensions,
             chunk_size=self.chunk_size,

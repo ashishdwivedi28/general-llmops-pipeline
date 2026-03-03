@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import csv
+import glob
 import json
+import os
 import typing as T
 
-from langchain_community.document_loaders import DirectoryLoader
 from langchain_google_vertexai import ChatVertexAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.schema import Document as LCDocument
 
 from llmops_pipeline.pipelines.base import Job, Locals
 
@@ -43,12 +45,27 @@ class GenerateDatasetJob(Job, frozen=True):
         logger = self.logger_service.logger()
         logger.info("Generating QA dataset from: {}", self.gcs_documents_path)
 
-        # Load and chunk documents
-        loader = DirectoryLoader(self.gcs_documents_path, show_progress=True)
-        documents = loader.load()
+        # Load documents using simple file reading (no unstructured/spaCy needed)
+        raw_docs = []
+        if os.path.isdir(self.gcs_documents_path):
+            for filepath in glob.glob(os.path.join(self.gcs_documents_path, "**/*"), recursive=True):
+                if os.path.isfile(filepath) and not filepath.endswith(".gitkeep"):
+                    try:
+                        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                            content = f.read().strip()
+                        if content:
+                            raw_docs.append(LCDocument(
+                                page_content=content,
+                                metadata={"source": filepath},
+                            ))
+                    except Exception as e:
+                        logger.warning("Skipping {}: {}", filepath, e)
+        else:
+            logger.warning("Document path not found: {}", self.gcs_documents_path)
+
         splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
-        chunks = splitter.split_documents(documents)
-        logger.info("Loaded {} documents → {} chunks", len(documents), len(chunks))
+        chunks = splitter.split_documents(raw_docs)
+        logger.info("Loaded {} documents → {} chunks", len(raw_docs), len(chunks))
 
         # Initialize Gemini for QA generation
         llm = ChatVertexAI(

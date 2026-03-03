@@ -33,6 +33,7 @@ class RegisterModelJob(Job, frozen=True):
     staging_label: str = "champion"
     model_config_path: str = "confs/rag_chain_config.yaml"
     gcs_bucket: str = ""
+    serving_image: str = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-12:latest"
     project: str = ""
     location: str = "us-central1"
 
@@ -53,6 +54,7 @@ class RegisterModelJob(Job, frozen=True):
         model = aiplatform.Model.upload(
             display_name=self.model_display_name,
             artifact_uri=artifact_uri,
+            serving_container_image_uri=self.serving_image,
             labels={"stage": self.staging_label},
         )
 

@@ -33,7 +33,7 @@ def test_merge_configs():
     cfg1 = parse_string("job:\n  KIND: FeatureEngineeringJob\n  project: base")
     cfg2 = parse_string("job:\n  project: override\n  location: us-central1")
 
-    merged = merge_configs(cfg1, cfg2)
+    merged = merge_configs([cfg1, cfg2])
     obj = to_object(merged)
     assert obj["job"]["project"] == "override"
     assert obj["job"]["KIND"] == "FeatureEngineeringJob"

@@ -16,8 +16,10 @@ WORKDIR /app
 # Copy dependency files first (Docker cache optimization)
 COPY pyproject.toml poetry.toml ./
 
-# Install dependencies using uv
-RUN uv pip install --system --no-cache-dir -r pyproject.toml
+# Export dependencies to requirements format and install them
+# This step is cached as long as pyproject.toml doesn't change
+RUN uv pip compile pyproject.toml -o /tmp/requirements.txt \
+    && uv pip install --system --no-cache-dir -r /tmp/requirements.txt
 
 # Copy source code
 COPY src/ src/
@@ -25,8 +27,8 @@ COPY serving/ serving/
 COPY confs/ confs/
 COPY kfp_pipelines/ kfp_pipelines/
 
-# Install the project itself
-RUN uv pip install --system --no-cache-dir -e .
+# Install the project itself (deps already installed, so --no-deps)
+RUN uv pip install --system --no-cache-dir --no-deps -e .
 
 # --- Stage 2: Production ----------------------------------------------------
 FROM python:3.11-slim AS production

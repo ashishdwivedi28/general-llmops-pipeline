@@ -59,4 +59,10 @@ def create_agent(config: ServerConfig | None = None) -> LlmAgent:
 
 
 # Module-level agent instance (created on import for ADK serving)
-root_agent = create_agent()
+# Wrapped in try/except so importing this module in tests or pipelines
+# does not crash when env vars are missing.
+try:
+    root_agent = create_agent()
+except Exception as _e:
+    logger.warning("Could not create root_agent at import time: %s", _e)
+    root_agent = None  # type: ignore[assignment]

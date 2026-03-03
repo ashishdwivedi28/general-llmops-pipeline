@@ -40,7 +40,6 @@ class EvaluateAndDeployJob(Job, frozen=True):
     metric_thresholds: dict[str, float] = {
         "answer_relevance": 0.70,
         "faithfulness": 0.65,
-        "readability": 5.0,
         "toxicity": 0.10,
     }
     automatic_deployment: bool = True

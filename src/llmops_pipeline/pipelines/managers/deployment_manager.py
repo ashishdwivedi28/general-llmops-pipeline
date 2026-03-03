@@ -58,12 +58,12 @@ class DeploymentJob(Job, frozen=True):
             gcs_bucket=self.gcs_bucket,
             model_display_name=self.model_display_name,
             serving_image=self.serving_image,
-            config_yaml_path=self.config_yaml_path,
+            model_config_path=self.config_yaml_path,
         )
         with reg_job as runner:
             reg_result = runner.run()
 
-        model_resource = reg_result.get("model_resource_name", "")
+        model_resource = reg_result.get("model_name", "")
         logger.info("Model registered: {}", model_resource)
 
         # Step 2: Evaluate + Deploy
@@ -75,13 +75,13 @@ class DeploymentJob(Job, frozen=True):
             project=self.project,
             location=self.location,
             model_display_name=self.model_display_name,
-            eval_dataset_csv=self.eval_dataset_csv,
+            qa_dataset_path=self.eval_dataset_csv,
             metric_thresholds=self.metric_thresholds,
             automatic_deployment=self.automatic_deployment,
         )
         with eval_job as runner:
             deploy_result = runner.run()
 
-        decision = deploy_result.get("decision", "UNKNOWN")
+        decision = deploy_result.get("status", "UNKNOWN")
         logger.info("=== Deployment Pipeline COMPLETE — Decision: {} ===", decision)
         return {**reg_result, **deploy_result}

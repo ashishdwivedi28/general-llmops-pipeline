@@ -1,7 +1,9 @@
 # QA Dataset Generation Config
 job:
   KIND: GenerateDatasetJob
-  gcs_documents_path: "gs://${GCP_PROJECT_ID}-llmops/documents/"
+  project: ${oc.env:GCP_PROJECT_ID}
+  location: ${oc.env:GCP_LOCATION,us-central1}
+  gcs_documents_path: "data/documents/"
   output_csv_path: "data/datasets/rag_eval.csv"
   output_json_path: "data/datasets/rag_eval.json"
   num_questions_per_chunk: 2
