@@ -39,9 +39,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.11"
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: ${{ secrets.GCP_REGION || 'us-central1' }}
-  ARTIFACT_REGISTRY: ${{ secrets.ARTIFACT_REGISTRY }}
+  REGION: us-central1
   IMAGE_NAME: llmops-agent
 
 jobs:
@@ -55,13 +53,12 @@ jobs:
       - name: Validate required secrets
         run: |
           MISSING=""
-          [ -z "${{ secrets.GCP_PROJECT_ID }}" ]       && MISSING="${MISSING} GCP_PROJECT_ID"
-          [ -z "${{ secrets.ARTIFACT_REGISTRY }}" ]    && MISSING="${MISSING} ARTIFACT_REGISTRY"
-          [ -z "${{ secrets.WIF_PROVIDER }}" ]         && MISSING="${MISSING} WIF_PROVIDER"
-          [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ]  && MISSING="${MISSING} WIF_SERVICE_ACCOUNT"
+          [ -z "${{ secrets.WIF_PROVIDER }}" ]        && MISSING="${MISSING} WIF_PROVIDER"
+          [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ] && MISSING="${MISSING} WIF_SERVICE_ACCOUNT"
+          [ -z "${{ secrets.GCP_PROJECT_ID }}" ]      && MISSING="${MISSING} GCP_PROJECT_ID"
           if [ -n "$MISSING" ]; then
             echo "::error::Missing required GitHub Secrets:${MISSING}"
-            echo "Go to: GitHub repo → Settings → Secrets and variables → Actions → New repository secret"
+            echo "Go to: GitHub repo → Settings → Secrets and variables → Actions"
             exit 1
           fi
           echo "All required secrets are present."
@@ -118,23 +115,28 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Configure Docker for Artifact Registry
-        run: |
-          # Extract the region hostname from ARTIFACT_REGISTRY
-          # e.g. "us-central1-docker.pkg.dev/project/repo" → "us-central1-docker.pkg.dev"
-          REGISTRY_HOST=$(echo "${{ env.ARTIFACT_REGISTRY }}" | cut -d'/' -f1)
-          gcloud auth configure-docker ${REGISTRY_HOST} --quiet
-
-      - name: Generate image metadata
+      - name: Configure Docker and resolve image path
         id: meta
         run: |
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-          IMAGE_URI="${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}"
-          IMAGE_LATEST="${{ env.ARTIFACT_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          # Use the project ID from the dedicated secret (most reliable)
+          PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+          echo "Resolved project: ${PROJECT_ID}"
+
+          # Authenticate Docker to Artifact Registry
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+          # Build the full image URI from known parts:
+          # REGION-docker.pkg.dev / PROJECT_ID / REPO_NAME / IMAGE_NAME : TAG
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          REGISTRY="${{ env.REGION }}-docker.pkg.dev/${PROJECT_ID}/llmops-agent-dev"
+          IMAGE_URI="${REGISTRY}/${{ env.IMAGE_NAME }}:${SHORT_SHA}"
+          IMAGE_LATEST="${REGISTRY}/${{ env.IMAGE_NAME }}:latest"
+
+          echo "image_uri=${IMAGE_URI}"   >> $GITHUB_OUTPUT
           echo "image_latest=${IMAGE_LATEST}" >> $GITHUB_OUTPUT
-          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "project_id=${PROJECT_ID}" >> $GITHUB_OUTPUT
           echo "Building: ${IMAGE_URI}"
 
       - name: Build and push Docker image
@@ -169,6 +171,10 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Set PROJECT_ID env var
+        run: echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
 
       - name: Deploy to Cloud Run (dev)
         uses: google-github-actions/deploy-cloudrun@v2
@@ -197,6 +203,10 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Set PROJECT_ID env var
+        run: echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
 
       - name: Deploy to Cloud Run (staging)
         uses: google-github-actions/deploy-cloudrun@v2
@@ -227,6 +237,10 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Set PROJECT_ID env var
+        run: echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
 
       - name: Deploy to Cloud Run (prod)
         uses: google-github-actions/deploy-cloudrun@v2
@@ -266,6 +280,10 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Set PROJECT_ID env var
+        run: echo "PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
 
       - name: Compile and submit master pipeline
         run: |

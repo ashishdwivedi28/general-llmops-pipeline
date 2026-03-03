@@ -16,19 +16,16 @@ WORKDIR /app
 # Copy dependency files first (Docker cache optimization)
 COPY pyproject.toml poetry.toml ./
 
-# Export dependencies to requirements format and install them
-# This step is cached as long as pyproject.toml doesn't change
-RUN uv pip compile pyproject.toml -o /tmp/requirements.txt \
-    && uv pip install --system --no-cache-dir -r /tmp/requirements.txt
-
-# Copy source code
+# Copy source code (needed for editable install resolution)
 COPY src/ src/
 COPY serving/ serving/
 COPY confs/ confs/
 COPY kfp_pipelines/ kfp_pipelines/
 
-# Install the project itself (deps already installed, so --no-deps)
-RUN uv pip install --system --no-cache-dir --no-deps -e .
+# Install project + all dependencies in one step.
+# pyproject.toml uses Poetry format ([tool.poetry.dependencies]), so we invoke
+# the Poetry build backend via uv — this resolves all deps correctly.
+RUN uv pip install --system --no-cache-dir -e .
 
 # --- Stage 2: Production ----------------------------------------------------
 FROM python:3.11-slim AS production
