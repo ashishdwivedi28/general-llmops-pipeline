@@ -180,12 +180,18 @@ jobs:
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Compute image URI
+        id: img
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "uri=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}" >> $GITHUB_OUTPUT
+
       - name: Deploy to Cloud Run (dev)
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.CR_SERVICE_DEV }}
           region: ${{ env.REGION }}
-          image: ${{ needs.build.outputs.image_uri }}
+          image: ${{ steps.img.outputs.uri }}
           flags: >-
             --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
             --set-env-vars=GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},GCP_LOCATION=${{ env.REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }}
@@ -213,12 +219,18 @@ jobs:
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Compute image URI
+        id: img
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "uri=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}" >> $GITHUB_OUTPUT
+
       - name: Deploy to Cloud Run (staging)
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.CR_SERVICE_STAGING }}
           region: ${{ env.REGION }}
-          image: ${{ needs.build.outputs.image_uri }}
+          image: ${{ steps.img.outputs.uri }}
           flags: >-
             --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
             --set-env-vars=GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},GCP_LOCATION=${{ env.REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }}
@@ -247,12 +259,18 @@ jobs:
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Compute image URI
+        id: img
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "uri=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}" >> $GITHUB_OUTPUT
+
       - name: Deploy to Cloud Run (prod)
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.CR_SERVICE_PROD }}
           region: ${{ env.REGION }}
-          image: ${{ needs.build.outputs.image_uri }}
+          image: ${{ steps.img.outputs.uri }}
           flags: >-
             --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
             --set-env-vars=GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},GCP_LOCATION=${{ env.REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }}
