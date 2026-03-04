@@ -61,7 +61,7 @@ USER appuser
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
     CMD curl -sf http://localhost:8080/health || exit 1
 
 CMD ["python", "-m", "uvicorn", "serving.server:app", "--host", "0.0.0.0", "--port", "8080"]
