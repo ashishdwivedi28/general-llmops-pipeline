@@ -3,8 +3,6 @@
 Vertex AI Pipeline that runs RegisterModel → EvaluateAndDeploy.
 """
 
-from __future__ import annotations
-
 from kfp import dsl
 
 

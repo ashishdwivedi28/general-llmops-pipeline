@@ -5,8 +5,6 @@ Usage:
     python -m kfp_pipelines.compile_and_run --project my-project --bucket my-bucket
 """
 
-from __future__ import annotations
-
 import argparse
 import os
 

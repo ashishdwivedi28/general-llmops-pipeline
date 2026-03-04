@@ -9,8 +9,6 @@ The top-level orchestrator that chains:
 This is the entry point for fully automated LLMOps.
 """
 
-from __future__ import annotations
-
 from kfp import dsl
 
 from kfp_pipelines.deployment import (

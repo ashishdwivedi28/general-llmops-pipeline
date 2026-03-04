@@ -3,8 +3,6 @@
 Vertex AI Pipeline that evaluates production quality from Cloud Logging traces.
 """
 
-from __future__ import annotations
-
 from kfp import dsl
 
 
