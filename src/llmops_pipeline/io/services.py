@@ -12,6 +12,7 @@ import typing as T
 
 import loguru
 import pydantic as pdt
+from pydantic import ConfigDict
 from google.cloud import aiplatform, storage
 from typing_extensions import override
 
@@ -131,8 +132,7 @@ class GCSService(Service, frozen=True):
 
     _client: storage.Client | None = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @override
     def start(self) -> None:

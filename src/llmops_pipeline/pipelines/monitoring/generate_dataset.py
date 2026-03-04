@@ -8,9 +8,9 @@ import json
 import os
 import typing as T
 
+from langchain_core.documents import Document as LCDocument
 from langchain_google_vertexai import ChatVertexAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.schema import Document as LCDocument
 
 from llmops_pipeline.pipelines.base import Job, Locals
 

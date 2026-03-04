@@ -194,7 +194,7 @@ class VertexVectorSearch:
         )
 
         # Split using raw text
-        from langchain.schema import Document as LCDocument
+        from langchain_core.documents import Document as LCDocument
 
         lc_docs = [
             LCDocument(page_content=d["page_content"], metadata=d["metadata"]) for d in documents
