@@ -46,9 +46,17 @@ def create_vector_db(
     if existing:
         index = existing[0]
     else:
+        # Create index with proper algorithm config (required by Vertex AI API)
+        from google.cloud.aiplatform.matching_engine import MatchingEngineIndexConfig
+
+        algorithm_config = MatchingEngineIndexConfig.TreeAhConfig(
+            leaf_node_embedding_count=500,
+        )
+
         index = aiplatform.MatchingEngineIndex.create_tree_ah_index(
             display_name=index_display_name,
             dimensions=embedding_dimensions,
+            algorithm_config=algorithm_config,
             approximate_neighbors_count=50,
             distance_measure_type="DOT_PRODUCT_DISTANCE",
             description="LLMOps vector index",
