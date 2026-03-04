@@ -70,12 +70,10 @@ def submit_pipeline(
         parameter_values=parameter_values or {},
         enable_caching=True,
     )
-    if service_account:
-        job_kwargs["service_account"] = service_account
 
     job = aiplatform.PipelineJob(**job_kwargs)
 
-    job.submit()
+    job.submit(service_account=service_account or None)
     print(f"Pipeline submitted: {display_name} → {job.resource_name}")
     return job.resource_name
 
