@@ -94,7 +94,7 @@ def main():
         help=(
             "Service account email for the Vertex AI pipeline job. "
             "Defaults to GCP_PIPELINE_SA env var. "
-            "Omitting this uses the default Compute Engine SA which may lack aiplatform permissions."
+            "If omitted, the default Compute Engine SA is used."
         ),
     )
     args = parser.parse_args()
