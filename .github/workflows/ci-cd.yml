@@ -292,4 +292,5 @@ jobs:
             --pipeline master \
             --project "${{ vars.GCP_PROJECT_ID }}" \
             --bucket "${{ secrets.GCS_BUCKET }}" \
-            --location "${{ vars.GCP_REGION }}"
+            --location "${{ vars.GCP_REGION }}" \
+            --service-account "${{ secrets.WIF_SERVICE_ACCOUNT }}"
