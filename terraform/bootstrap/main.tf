@@ -30,10 +30,6 @@ terraform {
       source  = "hashicorp/google-beta"
       version = "~> 5.0"
     }
-    github = {
-      source  = "integrations/github"
-      version = "~> 6.0"
-    }
   }
 }
 
@@ -78,9 +74,8 @@ provider "google-beta" {
   region  = var.region
 }
 
-provider "github" {
-  owner = var.repository_owner
-}
+# GitHub provider removed — Variables are set manually via gh CLI after apply
+# See the setup_instructions output for exact commands
 
 # --- Enable APIs --------------------------------------------------------------
 
@@ -213,9 +208,11 @@ resource "google_project_iam_member" "cicd_roles" {
 
 # --- Workload Identity Federation ---------------------------------------------
 
+# Note: Pool ID "github-pool-dev" may be soft-deleted (GCP keeps deleted names
+# for 30 days). Using a different ID "gh-actions-pool-dev" to avoid 409 conflicts.
 resource "google_iam_workload_identity_pool" "github" {
   provider                  = google-beta
-  workload_identity_pool_id = "github-pool-${var.environment}"
+  workload_identity_pool_id = "gh-actions-pool-${var.environment}"
   display_name              = "GitHub Actions Pool (${var.environment})"
 
   depends_on = [google_project_service.apis]
@@ -247,33 +244,22 @@ resource "google_service_account_iam_member" "cicd_wif" {
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.repository_owner}/${var.repository_name}"
 }
 
-# --- GitHub Variables (Auto-configured for CI/CD) ----------------------------
-
-locals {
-  github_variables = {
-    GCP_PROJECT_ID           = var.project_id
-    GCP_REGION               = var.region
-    ARTIFACT_REGISTRY_REPO   = google_artifact_registry_repository.agent.repository_id
-    IMAGE_NAME               = "llmops-agent"
-    CLOUD_RUN_SERVICE_DEV    = "llmops-agent-${var.environment}"
-    TERRAFORM_STATE_BUCKET   = google_storage_bucket.terraform_state.name
-  }
-}
-
-resource "github_actions_variable" "variables" {
-  for_each      = local.github_variables
-  repository    = var.repository_name
-  variable_name = each.key
-  value         = each.value
-}
-
-# The following must be set as SECRETS manually (Terraform should not
-# store sensitive values in state):
+# --- GitHub Variables & Secrets — Set manually after terraform apply ---------
+# Run: terraform output   to get values, then paste into the commands below.
 #
-#   WIF_PROVIDER          = <output.wif_provider below>
-#   WIF_SERVICE_ACCOUNT   = <output.cicd_service_account below>
-#   AGENT_SERVICE_ACCOUNT = <output.agent_service_account below>
-#   GCS_BUCKET            = <created by main module OR manually>
+# VARIABLES (non-sensitive — use gh CLI or GitHub web UI):
+#   gh variable set GCP_PROJECT_ID         --repo ashishdwivedi28/general-llmops-pipeline --body "project-3e17312f-26d8-4511-821"
+#   gh variable set GCP_REGION             --repo ashishdwivedi28/general-llmops-pipeline --body "us-central1"
+#   gh variable set ARTIFACT_REGISTRY_REPO --repo ashishdwivedi28/general-llmops-pipeline --body "llmops-agent-dev"
+#   gh variable set IMAGE_NAME             --repo ashishdwivedi28/general-llmops-pipeline --body "llmops-agent"
+#   gh variable set CLOUD_RUN_SERVICE_DEV  --repo ashishdwivedi28/general-llmops-pipeline --body "llmops-agent-dev"
+#   gh variable set TERRAFORM_STATE_BUCKET --repo ashishdwivedi28/general-llmops-pipeline --body "<terraform output terraform_state_bucket>"
+#
+# SECRETS (sensitive — must use gh CLI, cannot use web UI for WIF values):
+#   gh secret set WIF_PROVIDER          --repo ashishdwivedi28/general-llmops-pipeline --body "<terraform output wif_provider>"
+#   gh secret set WIF_SERVICE_ACCOUNT   --repo ashishdwivedi28/general-llmops-pipeline --body "<terraform output cicd_service_account>"
+#   gh secret set AGENT_SERVICE_ACCOUNT --repo ashishdwivedi28/general-llmops-pipeline --body "<terraform output agent_service_account>"
+#   gh secret set GCS_BUCKET            --repo ashishdwivedi28/general-llmops-pipeline --body "project-3e17312f-26d8-4511-821-llmops-dev"
 
 # --- Outputs ------------------------------------------------------------------
 
@@ -302,7 +288,23 @@ output "terraform_state_bucket" {
   value       = google_storage_bucket.terraform_state.name
 }
 
-output "github_variables_created" {
-  description = "GitHub Variables auto-configured"
-  value       = keys(local.github_variables)
+output "setup_instructions" {
+  description = "Run these commands after apply to configure GitHub repo"
+  value       = <<-EOT
+    # --- Copy-paste these commands into your terminal ---
+
+    # 1. Variables (non-sensitive)
+    gh variable set GCP_PROJECT_ID         --repo ${var.repository_owner}/${var.repository_name} --body "${var.project_id}"
+    gh variable set GCP_REGION             --repo ${var.repository_owner}/${var.repository_name} --body "${var.region}"
+    gh variable set ARTIFACT_REGISTRY_REPO --repo ${var.repository_owner}/${var.repository_name} --body "${google_artifact_registry_repository.agent.repository_id}"
+    gh variable set IMAGE_NAME             --repo ${var.repository_owner}/${var.repository_name} --body "llmops-agent"
+    gh variable set CLOUD_RUN_SERVICE_DEV  --repo ${var.repository_owner}/${var.repository_name} --body "llmops-agent-${var.environment}"
+    gh variable set TERRAFORM_STATE_BUCKET --repo ${var.repository_owner}/${var.repository_name} --body "${google_storage_bucket.terraform_state.name}"
+
+    # 2. Secrets (sensitive)
+    gh secret set WIF_PROVIDER          --repo ${var.repository_owner}/${var.repository_name} --body "${google_iam_workload_identity_pool_provider.github.name}"
+    gh secret set WIF_SERVICE_ACCOUNT   --repo ${var.repository_owner}/${var.repository_name} --body "${google_service_account.cicd.email}"
+    gh secret set AGENT_SERVICE_ACCOUNT --repo ${var.repository_owner}/${var.repository_name} --body "${google_service_account.agent.email}"
+    gh secret set GCS_BUCKET            --repo ${var.repository_owner}/${var.repository_name} --body "${var.project_id}-llmops-${var.environment}"
+  EOT
 }

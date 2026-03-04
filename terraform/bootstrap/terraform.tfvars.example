@@ -3,3 +3,4 @@ region           = "us-central1"
 environment      = "dev"
 repository_owner = "your-github-username-or-org"
 repository_name  = "general-llmops-pipeline"
+github_token     = ""  # GitHub PAT with 'repo' scope
