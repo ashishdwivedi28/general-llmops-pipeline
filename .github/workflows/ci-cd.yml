@@ -2,32 +2,62 @@
 # GitHub Actions — CI/CD Pipeline for LLMOps
 # ==============================================================================
 #
+# BRANCHING STRATEGY (GitHub Flow — Simplified):
+#
+#   feature/* branches
+#     - Created locally for every bug fix or new feature.
+#     - Pushing to a feature branch runs: Lint & Test only.
+#     - Open a Pull Request to merge into main.
+#     - GitHub branch protection blocks the merge until Lint & Test passes.
+#
+#   main branch
+#     - Merged commits here run the full pipeline: Lint → Build → Deploy.
+#     - Always deployable — never commit broken code directly here.
+#     - Protected by GitHub branch protection rules.
+#
+# DAILY WORKFLOW (Copy-Paste These Commands):
+#
+#   # 1. Always start from main and pull latest
+#   git checkout main
+#   git pull origin main
+#
+#   # 2. Create feature branch with short descriptive name
+#   git checkout -b feature/my-short-description
+#
+#   # 3. Make changes and commit
+#   git add -A
+#   git commit -m "fix: clear commit message of changes"
+#
+#   # 4. Push feature branch (triggers Lint & Test automatically)
+#   git push origin feature/my-short-description
+#
+#   # 5. Open PR on GitHub: feature/my-short-description → main
+#   #    - Go to https://github.com/ashishdwivedi28/general-llmops-pipeline
+#   #    - Click "Compare & pull request"
+#   #    - Base: main, Compare: feature/my-short-description
+#   #    - Wait for CI to finish (green checkmark = pass, red = fail)
+#   #    - If FAIL: Fix locally, git add/commit/push to same branch, CI runs again
+#   #    - If PASS: Click "Merge pull request" → "Confirm merge"
+#
+#   # 6. After merge, delete the feature branch (optional but clean)
+#   git push origin --delete feature/my-short-description
+#   git branch -d feature/my-short-description
+#   git checkout main && git pull origin main  # back to main with latest
+#
 # SETUP INSTRUCTIONS:
 #
 # 1. GitHub Repository Variables (Settings → Variables → Actions):
-#    These are NON-SENSITIVE values — safe to store as Variables (not Secrets).
-#
-#    GCP_PROJECT_ID              → your GCP project ID
-#    GCP_REGION                  → us-central1
-#    ARTIFACT_REGISTRY_REPO      → llmops-agent-dev
-#    IMAGE_NAME                  → llmops-agent
-#    CLOUD_RUN_SERVICE_DEV       → llmops-agent-dev
-#    CLOUD_RUN_SERVICE_STAGING   → llmops-agent-staging  (optional)
-#    CLOUD_RUN_SERVICE_PROD      → llmops-agent-prod     (optional)
+#    GCP_PROJECT_ID, GCP_REGION, ARTIFACT_REGISTRY_REPO, IMAGE_NAME,
+#    CLOUD_RUN_SERVICE_DEV, (optional) CLOUD_RUN_SERVICE_STAGING, CLOUD_RUN_SERVICE_PROD
 #
 # 2. GitHub Repository Secrets (Settings → Secrets → Actions):
-#    These are SENSITIVE values.
+#    WIF_PROVIDER, WIF_SERVICE_ACCOUNT, AGENT_SERVICE_ACCOUNT, GCS_BUCKET
 #
-#    WIF_PROVIDER                → projects/NNNN/locations/global/workloadIdentityPools/github-pool-dev/providers/github-provider
-#    WIF_SERVICE_ACCOUNT         → llmops-cicd-dev@PROJECT_ID.iam.gserviceaccount.com
-#    AGENT_SERVICE_ACCOUNT       → llmops-agent-dev@PROJECT_ID.iam.gserviceaccount.com
-#    GCS_BUCKET                  → PROJECT_ID-llmops-dev
-#
-# WHY Variables vs Secrets?
-#   GitHub Actions MASKS secrets in job outputs. If a cross-job output
-#   contains a secret value, the receiving job gets "***" instead.
-#   By storing non-sensitive values (project ID, region, repo name) as
-#   Variables, we avoid this masking problem entirely.
+# 3. Branch Protection (Settings → Branches → Add rule):
+#    Require a pull request before merging
+#    ✓ Require status checks to pass before merging → select "Lint & Test"
+#    ✓ Require branches to be up to date before merging
+#    ✓ Do not allow bypassing the above settings
 #
 # ==============================================================================
 
@@ -35,9 +65,12 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - "feature/**"   # Lint & Test only on feature branch pushes
   pull_request:
-    branches: [main]
+    branches:
+      - main          # Lint & Test on PR targeting main
   workflow_dispatch:
     inputs:
       environment:
