@@ -85,11 +85,6 @@ jobs:
 
       - name: Format check (ruff format)
         run: ruff format --check src/ serving/ kfp_pipelines/
-        continue-on-error: true
-
-      - name: Type check (mypy)
-        run: mypy src/ --ignore-missing-imports
-        continue-on-error: true
 
       - name: Run tests
         run: pytest tests/ -v --tb=short

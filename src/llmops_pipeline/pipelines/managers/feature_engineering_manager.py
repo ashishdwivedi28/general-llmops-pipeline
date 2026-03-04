@@ -57,8 +57,11 @@ class FeatureEngineeringJob(Job, frozen=True):
         with create_job as runner:
             db_result = runner.run()
 
-        logger.info("Vector DB ready: index={}, endpoint={}",
-                     db_result.get("index_name"), db_result.get("endpoint_name"))
+        logger.info(
+            "Vector DB ready: index={}, endpoint={}",
+            db_result.get("index_name"),
+            db_result.get("endpoint_name"),
+        )
 
         # Step 2: Ingest Documents
         logger.info("Step 2 / 2: Ingest Documents")

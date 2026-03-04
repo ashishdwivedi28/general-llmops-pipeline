@@ -53,15 +53,19 @@ class IngestDocumentsJob(Job, frozen=True):
 
         # Log metrics to Vertex AI Experiments
         with self.vertex_ai_service.run_context("ingest-documents"):
-            self.vertex_ai_service.log_metrics({
-                "num_documents": float(stats["num_documents"]),
-                "num_chunks": float(stats["num_chunks"]),
-            })
-            self.vertex_ai_service.log_params({
-                "embedding_model": self.embedding_model,
-                "chunk_size": str(self.chunk_size),
-                "chunk_overlap": str(self.chunk_overlap),
-            })
+            self.vertex_ai_service.log_metrics(
+                {
+                    "num_documents": float(stats["num_documents"]),
+                    "num_chunks": float(stats["num_chunks"]),
+                }
+            )
+            self.vertex_ai_service.log_params(
+                {
+                    "embedding_model": self.embedding_model,
+                    "chunk_size": str(self.chunk_size),
+                    "chunk_overlap": str(self.chunk_overlap),
+                }
+            )
 
         logger.info(
             "Ingestion complete: {} docs \u2192 {} chunks",

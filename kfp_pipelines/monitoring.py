@@ -37,9 +37,7 @@ def monitor_production_quality(
     start_time = now - timedelta(days=monitoring_window_days)
 
     full_filter = (
-        f'{log_filter} AND '
-        f'timestamp>="{start_time.isoformat()}" AND '
-        f'timestamp<="{now.isoformat()}"'
+        f'{log_filter} AND timestamp>="{start_time.isoformat()}" AND timestamp<="{now.isoformat()}"'
     )
 
     entries = list(client.list_entries(filter_=full_filter, max_results=500))
@@ -84,12 +82,14 @@ def monitor_production_quality(
         or avgs["toxicity"] > toxicity_threshold
     )
 
-    return json.dumps({
-        "degraded": degraded,
-        "status": "degraded" if degraded else "healthy",
-        "scores": avgs,
-        "num_traces": len(qa_pairs),
-    })
+    return json.dumps(
+        {
+            "degraded": degraded,
+            "status": "degraded" if degraded else "healthy",
+            "scores": avgs,
+            "num_traces": len(qa_pairs),
+        }
+    )
 
 
 @dsl.pipeline(

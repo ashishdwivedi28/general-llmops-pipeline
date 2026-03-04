@@ -66,11 +66,13 @@ class RegisterModelJob(Job, frozen=True):
 
         # Log to experiment
         with self.vertex_ai_service.run_context("register-model"):
-            self.vertex_ai_service.log_params({
-                "model_display_name": self.model_display_name,
-                "model_version": model.version_id or "1",
-                "stage_label": self.staging_label,
-            })
+            self.vertex_ai_service.log_params(
+                {
+                    "model_display_name": self.model_display_name,
+                    "model_version": model.version_id or "1",
+                    "stage_label": self.staging_label,
+                }
+            )
 
         return {
             "model_name": model.resource_name,

@@ -56,10 +56,12 @@ class GenerateDatasetJob(Job, frozen=True):
                         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
                             content = f.read().strip()
                         if content:
-                            raw_docs.append(LCDocument(
-                                page_content=content,
-                                metadata={"source": filepath},
-                            ))
+                            raw_docs.append(
+                                LCDocument(
+                                    page_content=content,
+                                    metadata={"source": filepath},
+                                )
+                            )
                     except Exception as e:
                         logger.warning("Skipping {}: {}", filepath, e)
         else:
@@ -111,9 +113,11 @@ class GenerateDatasetJob(Job, frozen=True):
 
         # Log to experiment
         with self.vertex_ai_service.run_context("generate-dataset"):
-            self.vertex_ai_service.log_metrics({
-                "num_qa_pairs": float(len(qa_pairs)),
-                "num_source_chunks": float(len(chunks)),
-            })
+            self.vertex_ai_service.log_metrics(
+                {
+                    "num_qa_pairs": float(len(qa_pairs)),
+                    "num_source_chunks": float(len(chunks)),
+                }
+            )
 
         return {"num_qa_pairs": len(qa_pairs), "output_csv": self.output_csv_path}

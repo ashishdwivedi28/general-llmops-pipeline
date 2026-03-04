@@ -112,10 +112,12 @@ class EvaluateAndDeployJob(Job, frozen=True):
         # Log to experiment
         with self.vertex_ai_service.run_context("evaluate-model"):
             self.vertex_ai_service.log_metrics(avg_scores)
-            self.vertex_ai_service.log_params({
-                "quality_gate": "PASS" if passed else "BLOCKED",
-                "num_qa_pairs": str(len(qa_pairs)),
-            })
+            self.vertex_ai_service.log_params(
+                {
+                    "quality_gate": "PASS" if passed else "BLOCKED",
+                    "num_qa_pairs": str(len(qa_pairs)),
+                }
+            )
 
         if passed and self.automatic_deployment:
             logger.info("QUALITY GATE: PASS — promoting to production")

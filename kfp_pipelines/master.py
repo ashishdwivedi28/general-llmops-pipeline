@@ -34,6 +34,7 @@ from kfp_pipelines.monitoring import (
 def parse_monitoring_result(result_json: str) -> bool:
     """Parse monitoring JSON and return True if degraded."""
     import json
+
     data = json.loads(result_json)
     return data.get("degraded", False)
 

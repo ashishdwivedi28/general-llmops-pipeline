@@ -36,9 +36,7 @@ def create_vector_db(
     aiplatform.init(project=project, location=location)
 
     # Check if index already exists
-    existing = aiplatform.MatchingEngineIndex.list(
-        filter=f'display_name="{index_display_name}"'
-    )
+    existing = aiplatform.MatchingEngineIndex.list(filter=f'display_name="{index_display_name}"')
     if existing:
         index = existing[0]
     else:
@@ -116,9 +114,7 @@ def ingest_documents(
     # Load and chunk
     loader = DirectoryLoader(tmp_dir, show_progress=True)
     docs = loader.load()
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size, chunk_overlap=chunk_overlap
-    )
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunks = splitter.split_documents(docs)
 
     # Embed

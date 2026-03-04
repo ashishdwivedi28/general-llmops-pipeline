@@ -20,14 +20,18 @@ def _get_embeddings(model_name: str, project: str, location: str):
     """Get embedding model — tries new package first, falls back to deprecated."""
     try:
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
         return GoogleGenerativeAIEmbeddings(
             model=f"models/{model_name}",
             google_api_key=None,  # Uses ADC
         )
     except ImportError:
         from langchain_google_vertexai import VertexAIEmbeddings
+
         return VertexAIEmbeddings(
-            model_name=model_name, project=project, location=location,
+            model_name=model_name,
+            project=project,
+            location=location,
         )
 
 
@@ -87,9 +91,7 @@ class VertexVectorSearch:
         logger.info(f"Creating Vertex AI Vector Search index: {display_name}")
 
         # Check if index already exists
-        existing = aiplatform.MatchingEngineIndex.list(
-            filter=f'display_name="{display_name}"'
-        )
+        existing = aiplatform.MatchingEngineIndex.list(filter=f'display_name="{display_name}"')
         if existing:
             logger.info(f"Index already exists: {existing[0].resource_name}")
             return existing[0]
@@ -169,10 +171,12 @@ class VertexVectorSearch:
                         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
                             content = f.read().strip()
                         if content:
-                            documents.append({
-                                "page_content": content,
-                                "metadata": {"source": filepath},
-                            })
+                            documents.append(
+                                {
+                                    "page_content": content,
+                                    "metadata": {"source": filepath},
+                                }
+                            )
                     except Exception as e:
                         logger.warning(f"Skipping {filepath}: {e}")
         else:
@@ -191,9 +195,9 @@ class VertexVectorSearch:
 
         # Split using raw text
         from langchain.schema import Document as LCDocument
+
         lc_docs = [
-            LCDocument(page_content=d["page_content"], metadata=d["metadata"])
-            for d in documents
+            LCDocument(page_content=d["page_content"], metadata=d["metadata"]) for d in documents
         ]
         chunks = splitter.split_documents(lc_docs)
         logger.info(f"Split into {len(chunks)} chunks")
@@ -258,8 +262,10 @@ class VertexVectorSearch:
         )
         results = []
         for neighbor in response[0]:
-            results.append({
-                "id": neighbor.id,
-                "distance": neighbor.distance,
-            })
+            results.append(
+                {
+                    "id": neighbor.id,
+                    "distance": neighbor.distance,
+                }
+            )
         return results

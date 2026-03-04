@@ -13,9 +13,11 @@ import typing as T
 import loguru
 import pydantic as pdt
 from google.cloud import aiplatform, storage
+from typing_extensions import override
 
 
 # --- Base ---
+
 
 class Service(abc.ABC, pdt.BaseModel, strict=True, frozen=True, extra="forbid"):
     """Abstract service with start/stop lifecycle."""
@@ -29,6 +31,7 @@ class Service(abc.ABC, pdt.BaseModel, strict=True, frozen=True, extra="forbid"):
 
 
 # --- Logger ---
+
 
 class LoggerService(Service, frozen=True):
     """Loguru-based structured logging.
@@ -51,7 +54,7 @@ class LoggerService(Service, frozen=True):
     colorize: bool = True
     serialize: bool = False
 
-    @T.override
+    @override
     def start(self) -> None:
         loguru.logger.remove()
         sinks = {"stderr": sys.stderr, "stdout": sys.stdout}
@@ -65,6 +68,7 @@ class LoggerService(Service, frozen=True):
 
 
 # --- Vertex AI Experiments ---
+
 
 class VertexAIService(Service, frozen=True):
     """Vertex AI Experiments tracking service.
@@ -84,7 +88,7 @@ class VertexAIService(Service, frozen=True):
     experiment_name: str = "llmops-experiment"
     staging_bucket: str = ""
 
-    @T.override
+    @override
     def start(self) -> None:
         aiplatform.init(
             project=self.project,
@@ -113,6 +117,7 @@ class VertexAIService(Service, frozen=True):
 
 # --- Cloud Storage ---
 
+
 class GCSService(Service, frozen=True):
     """Google Cloud Storage helper.
 
@@ -129,7 +134,7 @@ class GCSService(Service, frozen=True):
     class Config:
         arbitrary_types_allowed = True
 
-    @T.override
+    @override
     def start(self) -> None:
         object.__setattr__(self, "_client", storage.Client(project=self.project))
 

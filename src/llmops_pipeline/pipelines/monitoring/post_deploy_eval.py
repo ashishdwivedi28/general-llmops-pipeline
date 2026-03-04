@@ -57,7 +57,7 @@ class PostDeployEvalJob(Job, frozen=True):
         start_time = now - timedelta(days=self.monitoring_window_days)
 
         full_filter = (
-            f'{self.log_filter} AND '
+            f"{self.log_filter} AND "
             f'timestamp>="{start_time.isoformat()}" AND '
             f'timestamp<="{now.isoformat()}"'
         )
@@ -74,11 +74,13 @@ class PostDeployEvalJob(Job, frozen=True):
         for entry in entries:
             payload = entry.payload
             if isinstance(payload, dict) and "question" in payload and "answer" in payload:
-                qa_pairs.append({
-                    "question": payload["question"],
-                    "answer": payload["answer"],
-                    "context": payload.get("context", ""),
-                })
+                qa_pairs.append(
+                    {
+                        "question": payload["question"],
+                        "answer": payload["answer"],
+                        "context": payload.get("context", ""),
+                    }
+                )
 
         logger.info("Extracted {} QA pairs from traces", len(qa_pairs))
 
@@ -139,11 +141,13 @@ class PostDeployEvalJob(Job, frozen=True):
         # Log to experiment
         with self.vertex_ai_service.run_context("monitoring-eval"):
             self.vertex_ai_service.log_metrics(avg_scores)
-            self.vertex_ai_service.log_params({
-                "monitoring_window_days": str(self.monitoring_window_days),
-                "num_traces_evaluated": str(len(qa_pairs)),
-                "degraded": str(degraded),
-            })
+            self.vertex_ai_service.log_params(
+                {
+                    "monitoring_window_days": str(self.monitoring_window_days),
+                    "num_traces_evaluated": str(len(qa_pairs)),
+                    "degraded": str(degraded),
+                }
+            )
 
         if degraded:
             logger.warning("QUALITY DEGRADATION DETECTED — alerting and triggering re-pipeline")
