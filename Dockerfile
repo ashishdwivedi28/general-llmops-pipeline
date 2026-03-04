@@ -28,6 +28,7 @@ RUN poetry config virtualenvs.create false \
 
 # Copy source + install the project package itself
 COPY src/ src/
+COPY serving/ serving/
 RUN poetry install --only main --no-interaction --no-ansi
 
 # --------------- Stage 2: Production ----------------------------------------
