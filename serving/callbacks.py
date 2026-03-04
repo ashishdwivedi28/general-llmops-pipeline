@@ -7,8 +7,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from google.cloud import bigquery
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,6 +24,8 @@ class InteractionLogger:
 
         if bq_dataset and bq_table:
             try:
+                from google.cloud import bigquery
+
                 self.bq_client = bigquery.Client(project=project_id)
                 self.bq_table_ref = f"{project_id}.{bq_dataset}.{bq_table}"
                 logger.info("BigQuery logging enabled: %s", self.bq_table_ref)

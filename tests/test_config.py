@@ -7,6 +7,9 @@ import os
 
 import pytest
 
+# These tests need google-cloud-* packages to import pipeline modules
+gcp = pytest.importorskip("google.cloud.aiplatform", reason="google-cloud-aiplatform not installed")
+
 
 def test_parse_yaml_config():
     """Test OmegaConf YAML parsing."""

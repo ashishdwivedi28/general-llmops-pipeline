@@ -1,64 +1,66 @@
-# ============================================================================
-# Multi-stage Dockerfile for LLMOps Pipeline + Agent Serving
-# ============================================================================
-# Stage 1: Build dependencies with uv (fast Python package manager)
-# Stage 2: Slim production image
-# ============================================================================
+# ==============================================================================
+# Dockerfile — LLMOps Pipeline Agent (Cloud Run)
+# ==============================================================================
+# Two-stage build:
+#   1. Builder — install Python dependencies via Poetry
+#   2. Production — slim runtime with only what's needed
+# ==============================================================================
 
-# --- Stage 1: Builder -------------------------------------------------------
+# --------------- Stage 1: Builder -------------------------------------------
 FROM python:3.11-slim AS builder
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+WORKDIR /build
 
-WORKDIR /app
-
-# Copy dependency files first (Docker cache optimization)
-COPY pyproject.toml poetry.toml README.md ./
-
-# Copy source code (needed for editable install resolution)
-COPY src/ src/
-COPY serving/ serving/
-COPY confs/ confs/
-COPY kfp_pipelines/ kfp_pipelines/
-
-# Install project + all dependencies in one step.
-# pyproject.toml uses Poetry format ([tool.poetry.dependencies]), so we invoke
-# the Poetry build backend via uv — this resolves all deps correctly.
-RUN uv pip install --system --no-cache-dir .
-
-# --- Stage 2: Production ----------------------------------------------------
-FROM python:3.11-slim AS production
-
-# Install runtime dependencies
+# System deps for building wheels (grpcio, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
+        build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
+# Install Poetry (pinned version for reproducibility)
+RUN pip install --no-cache-dir "poetry==1.8.4"
+
+# Copy dependency manifests first (Docker layer caching)
+COPY pyproject.toml poetry.toml README.md ./
+
+# Install dependencies into system site-packages (no venv in Docker)
+RUN poetry config virtualenvs.create false \
+    && poetry install --only main --no-interaction --no-ansi --no-root
+
+# Copy source + install the project package itself
+COPY src/ src/
+RUN poetry install --only main --no-interaction --no-ansi
+
+# --------------- Stage 2: Production ----------------------------------------
+FROM python:3.11-slim AS production
+
+# Runtime-only system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root user
 RUN useradd --create-home --shell /bin/bash appuser
 
 WORKDIR /app
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+# Copy installed Python packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages \
+                    /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy application code
-COPY --from=builder /app/src/ src/
-COPY --from=builder /app/serving/ serving/
-COPY --from=builder /app/confs/ confs/
-COPY --from=builder /app/kfp_pipelines/ kfp_pipelines/
+# Copy application code (serving layer + configs)
+COPY serving/ serving/
+COPY confs/ confs/
+COPY kfp_pipelines/ kfp_pipelines/
 
-# Switch to non-root user
+# Ensure serving is on PYTHONPATH (not installed as a package)
+ENV PYTHONPATH="/app"
+
 USER appuser
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" || exit 1
-
-# Expose port
 EXPOSE 8080
 
-# Run the serving layer
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -sf http://localhost:8080/health || exit 1
+
 CMD ["python", "-m", "uvicorn", "serving.server:app", "--host", "0.0.0.0", "--port", "8080"]

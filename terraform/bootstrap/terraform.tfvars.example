@@ -1,0 +1,5 @@
+project_id       = "your-gcp-project-id"
+region           = "us-central1"
+environment      = "dev"
+repository_owner = "your-github-username-or-org"
+repository_name  = "general-llmops-pipeline"

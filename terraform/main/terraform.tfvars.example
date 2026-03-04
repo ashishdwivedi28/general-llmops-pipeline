@@ -1,0 +1,5 @@
+project_id                  = "your-gcp-project-id"
+region                      = "us-central1"
+environment                 = "dev"
+agent_service_account_email = "llmops-agent-dev@your-gcp-project-id.iam.gserviceaccount.com"
+# docker_image              = "us-central1-docker.pkg.dev/your-project/llmops-agent-dev/llmops-agent:latest"

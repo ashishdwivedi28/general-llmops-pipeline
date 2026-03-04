@@ -44,9 +44,15 @@ service-account-key.json
 
 # Terraform
 terraform/.terraform/
+terraform/**/.terraform/
 terraform/*.tfstate
+terraform/**/*.tfstate
 terraform/*.tfstate.backup
+terraform/**/*.tfstate.backup
 terraform/*.tfplan
+terraform/**/*.tfplan
+terraform/**/terraform.tfvars
+terraform/main.tf.bak
 
 # Docker
 *.tar

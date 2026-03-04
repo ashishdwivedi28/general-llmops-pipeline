@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
@@ -10,6 +11,8 @@ class ServerConfig(BaseSettings):
 
     All values come from env vars (or a ``.env`` file).
     """
+
+    model_config = ConfigDict(env_file=".env", case_sensitive=True)
 
     # GCP
     GCP_PROJECT_ID: str = ""
@@ -40,7 +43,3 @@ class ServerConfig(BaseSettings):
     # Observability
     ENABLE_TRACING: bool = True
     OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True

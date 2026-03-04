@@ -1,17 +1,34 @@
 ﻿# ==============================================================================
 # GitHub Actions — CI/CD Pipeline for LLMOps
 # ==============================================================================
-# Secrets required in GitHub repo Settings → Secrets → Actions:
 #
-#   GCP_PROJECT_ID        → project-3e17312f-26d8-4511-821
-#   WIF_PROVIDER          → projects/1012647224038/locations/global/workloadIdentityPools/github-pool-dev/providers/github-provider
-#   WIF_SERVICE_ACCOUNT   → llmops-cicd-dev@project-3e17312f-26d8-4511-821.iam.gserviceaccount.com
-#   AGENT_SERVICE_ACCOUNT → llmops-agent-dev@project-3e17312f-26d8-4511-821.iam.gserviceaccount.com
-#   GCS_BUCKET            → project-3e17312f-26d8-4511-821-llmops-dev
+# SETUP INSTRUCTIONS:
 #
-# Branch → Deploy mapping:
-#   push to main or develop → build image + deploy to llmops-agent-dev (Cloud Run)
-#   workflow_dispatch       → build + deploy to chosen environment
+# 1. GitHub Repository Variables (Settings → Variables → Actions):
+#    These are NON-SENSITIVE values — safe to store as Variables (not Secrets).
+#
+#    GCP_PROJECT_ID              → your GCP project ID
+#    GCP_REGION                  → us-central1
+#    ARTIFACT_REGISTRY_REPO      → llmops-agent-dev
+#    IMAGE_NAME                  → llmops-agent
+#    CLOUD_RUN_SERVICE_DEV       → llmops-agent-dev
+#    CLOUD_RUN_SERVICE_STAGING   → llmops-agent-staging  (optional)
+#    CLOUD_RUN_SERVICE_PROD      → llmops-agent-prod     (optional)
+#
+# 2. GitHub Repository Secrets (Settings → Secrets → Actions):
+#    These are SENSITIVE values.
+#
+#    WIF_PROVIDER                → projects/NNNN/locations/global/workloadIdentityPools/github-pool-dev/providers/github-provider
+#    WIF_SERVICE_ACCOUNT         → llmops-cicd-dev@PROJECT_ID.iam.gserviceaccount.com
+#    AGENT_SERVICE_ACCOUNT       → llmops-agent-dev@PROJECT_ID.iam.gserviceaccount.com
+#    GCS_BUCKET                  → PROJECT_ID-llmops-dev
+#
+# WHY Variables vs Secrets?
+#   GitHub Actions MASKS secrets in job outputs. If a cross-job output
+#   contains a secret value, the receiving job gets "***" instead.
+#   By storing non-sensitive values (project ID, region, repo name) as
+#   Variables, we avoid this masking problem entirely.
+#
 # ==============================================================================
 
 name: CI/CD Pipeline
@@ -28,10 +45,7 @@ on:
         required: true
         default: "dev"
         type: choice
-        options:
-          - dev
-          - staging
-          - prod
+        options: [dev, staging, prod]
       run_pipeline:
         description: "Submit Vertex AI Pipeline after deploy?"
         required: false
@@ -42,69 +56,54 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  PYTHON_VERSION: "3.11"
-  REGION: us-central1
-  IMAGE_NAME: llmops-agent
-  AR_REPO: llmops-agent-dev
-  CR_SERVICE_DEV: llmops-agent-dev
-  CR_SERVICE_STAGING: llmops-agent-staging
-  CR_SERVICE_PROD: llmops-agent-prod
-
 # ==============================================================================
-# Stage 1: Lint & Test — runs on every push and PR
+# STAGE 1: Lint & Test
 # ==============================================================================
 jobs:
   lint-and-test:
-    name: Lint & Test
+    name: "Lint & Test"
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate required secrets
-        run: |
-          MISSING=""
-          [ -z "${{ secrets.GCP_PROJECT_ID }}" ]        && MISSING="${MISSING} GCP_PROJECT_ID"
-          [ -z "${{ secrets.WIF_PROVIDER }}" ]          && MISSING="${MISSING} WIF_PROVIDER"
-          [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ]   && MISSING="${MISSING} WIF_SERVICE_ACCOUNT"
-          [ -z "${{ secrets.AGENT_SERVICE_ACCOUNT }}" ] && MISSING="${MISSING} AGENT_SERVICE_ACCOUNT"
-          if [ -n "$MISSING" ]; then
-            echo "::error::Missing required GitHub Secrets:${MISSING}"
-            exit 1
-          fi
-          echo "All required secrets present."
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: "3.11"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - name: Install Poetry
+        run: pip install "poetry==1.8.4"
 
-      - name: Install linting tools
-        run: uv pip install --system ruff mypy
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create false
+          poetry install --no-interaction --no-ansi
 
-      - name: Lint with ruff
+      - name: Lint (ruff check)
         run: ruff check src/ serving/ kfp_pipelines/
 
-      - name: Type check with mypy
+      - name: Format check (ruff format)
+        run: ruff format --check src/ serving/ kfp_pipelines/
+        continue-on-error: true
+
+      - name: Type check (mypy)
         run: mypy src/ --ignore-missing-imports
         continue-on-error: true
 
-      - name: Install project for tests
-        run: uv pip install --system pytest pytest-cov ".[dev]"
-
       - name: Run tests
-        run: pytest tests/ -v --cov=src/llmops_pipeline --cov-report=xml
-        continue-on-error: true
+        run: pytest tests/ -v --tb=short
+        env:
+          GCP_PROJECT_ID: test-project
+          GCS_BUCKET: test-bucket
 
-# ==============================================================================
-# Stage 2: Build & Push Docker image to Artifact Registry
-# Runs on every push to main/develop (not on PRs)
-# ==============================================================================
+  # ==============================================================================
+  # STAGE 2: Build & Push Docker Image
+  # Only runs on push to main/develop or workflow_dispatch (not on PRs).
+  # Uses docker/build-push-action for reliable builds with BuildKit caching.
+  # ==============================================================================
   build:
-    name: Build & Push Docker Image
+    name: "Build & Push Docker Image"
     needs: lint-and-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -113,176 +112,162 @@ jobs:
       id-token: write
 
     outputs:
-      image_uri: ${{ steps.meta.outputs.image_uri }}
-      short_sha: ${{ steps.meta.outputs.short_sha }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      full_image: ${{ steps.meta.outputs.full_image }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud (WIF)
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Validate configuration
+        run: |
+          MISSING=""
+          # Check Variables
+          [ -z "${{ vars.GCP_PROJECT_ID }}" ]         && MISSING="${MISSING} vars.GCP_PROJECT_ID"
+          [ -z "${{ vars.GCP_REGION }}" ]              && MISSING="${MISSING} vars.GCP_REGION"
+          [ -z "${{ vars.ARTIFACT_REGISTRY_REPO }}" ]  && MISSING="${MISSING} vars.ARTIFACT_REGISTRY_REPO"
+          [ -z "${{ vars.IMAGE_NAME }}" ]              && MISSING="${MISSING} vars.IMAGE_NAME"
+          # Check Secrets (can only test if they're non-empty)
+          [ -z "${{ secrets.WIF_PROVIDER }}" ]         && MISSING="${MISSING} secrets.WIF_PROVIDER"
+          [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ]  && MISSING="${MISSING} secrets.WIF_SERVICE_ACCOUNT"
+          if [ -n "$MISSING" ]; then
+            echo "::error::Missing required configuration:${MISSING}"
+            echo "See workflow comments for setup instructions."
+            exit 1
+          fi
+          echo "✓ All required configuration present."
 
-      - name: Set up Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-
-      - name: Compute image URI
+      - name: Compute image metadata
         id: meta
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          BASE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}"
-          IMAGE_URI="${BASE}:${SHORT_SHA}"
-          IMAGE_LATEST="${BASE}:latest"
-          echo "image_uri=${IMAGE_URI}"       >> $GITHUB_OUTPUT
-          echo "image_latest=${IMAGE_LATEST}" >> $GITHUB_OUTPUT
-          echo "short_sha=${SHORT_SHA}"       >> $GITHUB_OUTPUT
-          echo "Will build and push: ${IMAGE_URI}"
+          REGISTRY="${{ vars.GCP_REGION }}-docker.pkg.dev"
+          REPO="${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO }}"
+          IMAGE="${REGISTRY}/${REPO}/${{ vars.IMAGE_NAME }}"
 
-      - name: Build Docker image
-        run: |
-          docker build \
-            --tag "${{ steps.meta.outputs.image_uri }}" \
-            --tag "${{ steps.meta.outputs.image_latest }}" \
-            --build-arg BUILD_SHA="${{ github.sha }}" \
-            .
+          echo "image_tag=${SHORT_SHA}"           >> "$GITHUB_OUTPUT"
+          echo "full_image=${IMAGE}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_latest=${IMAGE}:latest"     >> "$GITHUB_OUTPUT"
 
-      - name: Push Docker image
-        run: |
-          docker push "${{ steps.meta.outputs.image_uri }}"
-          docker push "${{ steps.meta.outputs.image_latest }}"
-          echo "Pushed: ${{ steps.meta.outputs.image_uri }}"
+          echo "### Docker Image" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag: \`${SHORT_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`${IMAGE}:${SHORT_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
 
-# ==============================================================================
-# Stage 3a: Deploy to Dev
-# Triggers: every push to main or develop, OR workflow_dispatch environment=dev
-# Cloud Run service: llmops-agent-dev (exists in GCP)
-# ==============================================================================
-  deploy-dev:
-    name: Deploy to Dev
-    needs: build
-    runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
-    permissions:
-      contents: read
-      id-token: write
-    environment: dev
-
-    steps:
-      - name: Authenticate to Google Cloud (WIF)
+      - name: Authenticate to Google Cloud
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          token_format: access_token
 
-      - name: Compute image URI
-        id: img
-        run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "uri=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}" >> $GITHUB_OUTPUT
-
-      - name: Deploy to Cloud Run (dev)
-        uses: google-github-actions/deploy-cloudrun@v2
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
         with:
-          service: ${{ env.CR_SERVICE_DEV }}
-          region: ${{ env.REGION }}
-          image: ${{ steps.img.outputs.uri }}
-          flags: >-
-            --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
-            --set-env-vars=GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},GCP_LOCATION=${{ env.REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }}
+          registry: ${{ vars.GCP_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
 
-# ==============================================================================
-# Stage 3b: Deploy to Staging
-# Triggers: only via workflow_dispatch with environment=staging
-# NOTE: Create llmops-agent-staging Cloud Run service first via Terraform
-# ==============================================================================
-  deploy-staging:
-    name: Deploy to Staging
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.full_image }}
+            ${{ steps.meta.outputs.image_latest }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==============================================================================
+  # STAGE 3: Deploy to Cloud Run
+  #
+  # Single deploy job that determines the target environment dynamically.
+  # - push events → deploy to dev
+  # - workflow_dispatch → deploy to selected environment
+  #
+  # IMAGE URI is computed locally from Variables (not from cross-job output)
+  # to avoid GitHub's secret-masking of cross-job outputs.
+  # ==============================================================================
+  deploy:
+    name: "Deploy to ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'dev' }}"
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
       id-token: write
-    environment: staging
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'dev' }}
 
     steps:
-      - name: Authenticate to Google Cloud (WIF)
+      - name: Determine environment and service
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          else
+            ENV="dev"
+          fi
+          echo "environment=${ENV}" >> "$GITHUB_OUTPUT"
+
+          # Map environment to Cloud Run service name
+          case "${ENV}" in
+            dev)     SERVICE="${{ vars.CLOUD_RUN_SERVICE_DEV }}" ;;
+            staging) SERVICE="${{ vars.CLOUD_RUN_SERVICE_STAGING }}" ;;
+            prod)    SERVICE="${{ vars.CLOUD_RUN_SERVICE_PROD }}" ;;
+            *)       echo "::error::Unknown environment: ${ENV}"; exit 1 ;;
+          esac
+
+          if [ -z "${SERVICE}" ]; then
+            echo "::error::Cloud Run service not configured for env: ${ENV}. Set CLOUD_RUN_SERVICE_$(echo ${ENV} | tr '[:lower:]' '[:upper:]') in GitHub Variables."
+            exit 1
+          fi
+
+          echo "service=${SERVICE}" >> "$GITHUB_OUTPUT"
+          echo "Deploying to: ${SERVICE} (${ENV})"
+
+      - name: Compute image URI
+        id: image
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          REGISTRY="${{ vars.GCP_REGION }}-docker.pkg.dev"
+          URI="${REGISTRY}/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/${{ vars.IMAGE_NAME }}:${SHORT_SHA}"
+          echo "uri=${URI}" >> "$GITHUB_OUTPUT"
+          echo "Deploying image: ${URI}"
+
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Compute image URI
-        id: img
-        run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "uri=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}" >> $GITHUB_OUTPUT
-
-      - name: Deploy to Cloud Run (staging)
+      - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
-          service: ${{ env.CR_SERVICE_STAGING }}
-          region: ${{ env.REGION }}
-          image: ${{ steps.img.outputs.uri }}
+          service: ${{ steps.env.outputs.service }}
+          region: ${{ vars.GCP_REGION }}
+          image: ${{ steps.image.outputs.uri }}
           flags: >-
             --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
-            --set-env-vars=GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},GCP_LOCATION=${{ env.REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }}
+            --set-env-vars=GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCP_LOCATION=${{ vars.GCP_REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }}
 
-# ==============================================================================
-# Stage 3c: Deploy to Production
-# Triggers: only via workflow_dispatch with environment=prod
-# Requires manual approval gate configured in GitHub Environment settings
-# ==============================================================================
-  deploy-prod:
-    name: Deploy to Production
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
-    permissions:
-      contents: read
-      id-token: write
-    environment:
-      name: prod
-
-    steps:
-      - name: Authenticate to Google Cloud (WIF)
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Compute image URI
-        id: img
+      - name: Deployment summary
         run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "uri=${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE_NAME }}:${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "### Deployment Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Environment:** ${{ steps.env.outputs.environment }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Service:** ${{ steps.env.outputs.service }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Image:** ${{ steps.image.outputs.uri }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Region:** ${{ vars.GCP_REGION }}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Deploy to Cloud Run (prod)
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.CR_SERVICE_PROD }}
-          region: ${{ env.REGION }}
-          image: ${{ steps.img.outputs.uri }}
-          flags: >-
-            --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
-            --set-env-vars=GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},GCP_LOCATION=${{ env.REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }}
-            --min-instances=1
-
-# ==============================================================================
-# Stage 4: Submit Vertex AI Pipeline
-# Triggers: only when run_pipeline=true in workflow_dispatch
-# ==============================================================================
+  # ==============================================================================
+  # STAGE 4: Submit Vertex AI Pipeline (optional)
+  # Only triggers when explicitly requested via workflow_dispatch.
+  # ==============================================================================
   submit-pipeline:
-    name: Submit Vertex AI Pipeline
-    needs: deploy-dev
+    name: "Submit Vertex AI Pipeline"
+    needs: deploy
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_pipeline == 'true'
     permissions:
@@ -292,25 +277,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: "3.11"
 
       - name: Install pipeline dependencies
         run: pip install kfp google-cloud-aiplatform
 
-      - name: Authenticate to Google Cloud (WIF)
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Compile and submit master pipeline
+      - name: Compile and submit pipeline
         run: |
           python -m kfp_pipelines.compile_and_run \
             --pipeline master \
-            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
             --bucket "${{ secrets.GCS_BUCKET }}" \
-            --location "${{ env.REGION }}"
+            --location "${{ vars.GCP_REGION }}"

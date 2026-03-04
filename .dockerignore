@@ -1,0 +1,74 @@
+# ==============================================================================
+# .dockerignore — Exclude files from Docker build context
+# ==============================================================================
+
+# Version control
+.git/
+.github/
+.gitignore
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+myenv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+
+# Terraform
+terraform/
+
+# Tests (not needed in production image)
+tests/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Data (mounted at runtime, not baked in)
+data/documents/*
+data/datasets/*.csv
+data/datasets/*.json
+mlruns/
+outputs/
+compiled_pipelines/
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Lab/test scripts
+lab_test/
