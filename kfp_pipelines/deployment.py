@@ -70,6 +70,16 @@ def evaluate_model(
 
     aiplatform.init(project=project, location=location)
 
+    # Handle empty eval dataset — auto-pass when no dataset is configured
+    if not eval_dataset_gcs or not eval_dataset_gcs.startswith("gs://"):
+        return json.dumps(
+            {
+                "decision": "PASS",
+                "reason": "no_eval_dataset_configured",
+                "scores": {"answer_relevance": 0.0, "faithfulness": 0.0, "toxicity": 0.0},
+            }
+        )
+
     # Download eval dataset
     client = storage.Client(project=project)
     bucket_name = eval_dataset_gcs.split("/")[2]

@@ -31,6 +31,11 @@ class ServerConfig(BaseSettings):
     RAG_SIMILARITY_TOP_K: int = 10
     RAG_VECTOR_DISTANCE_THRESHOLD: float = 0.5
 
+    # Vector Search (from Pipeline Phase 1 — fallback when RAG_CORPUS_RESOURCE is empty)
+    VECTOR_SEARCH_INDEX_ENDPOINT: str = ""  # projects/{proj}/locations/{loc}/indexEndpoints/{id}
+    VECTOR_SEARCH_DEPLOYED_INDEX_ID: str = ""  # e.g. llmops_vector_index
+    GCS_BUCKET: str = ""  # For auto-discovery of pipeline outputs
+
     # Guardrails
     VALID_TOPICS: list[str] = []
     INVALID_TOPICS: list[str] = []

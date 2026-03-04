@@ -23,13 +23,21 @@ from kfp import dsl
 def create_vector_db(
     project: str,
     location: str,
+    gcs_bucket: str,
     index_display_name: str,
     endpoint_display_name: str,
     embedding_model: str,
     embedding_dimensions: int,
 ) -> str:
-    """Create Vertex AI Vector Search index + endpoint."""
-    from google.cloud import aiplatform
+    """Create Vertex AI Vector Search index + endpoint.
+
+    Writes endpoint config to GCS (pipeline_outputs/vector_db_config.json)
+    for the serving layer to auto-discover.
+    """
+    import json
+    from datetime import datetime, timezone
+
+    from google.cloud import aiplatform, storage
 
     aiplatform.init(project=project, location=location)
 
@@ -62,7 +70,29 @@ def create_vector_db(
             deployed_index_id=index_display_name.replace("-", "_"),
         )
 
-    return index.resource_name
+    # Write config to GCS for serving layer auto-discovery
+    deployed_index_id = index_display_name.replace("-", "_")
+    config = {
+        "index_resource_name": index.resource_name,
+        "endpoint_resource_name": endpoint.resource_name,
+        "deployed_index_id": deployed_index_id,
+        "embedding_model": embedding_model,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if gcs_bucket:
+        try:
+            gcs_client = storage.Client(project=project)
+            bucket_obj = gcs_client.bucket(gcs_bucket)
+            blob = bucket_obj.blob("pipeline_outputs/vector_db_config.json")
+            blob.upload_from_string(json.dumps(config, indent=2))
+            print(
+                f"Vector DB config written to gs://{gcs_bucket}/pipeline_outputs/vector_db_config.json"
+            )
+        except Exception as e:
+            print(f"Warning: Could not write vector DB config to GCS: {e}")
+
+    return json.dumps(config)
 
 
 @dsl.component(
@@ -159,6 +189,7 @@ def feature_engineering_pipeline(
     db_task = create_vector_db(
         project=project,
         location=location,
+        gcs_bucket=gcs_bucket,
         index_display_name=index_display_name,
         endpoint_display_name=endpoint_display_name,
         embedding_model=embedding_model,

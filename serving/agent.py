@@ -32,11 +32,17 @@ def create_agent(config: ServerConfig | None = None) -> LlmAgent:
 
     logger.info("Creating agent: %s (model: %s)", config.AGENT_NAME, config.MODEL_NAME)
 
-    # Build tools
+    # Build tools (auto-discovers Vector DB from GCS if env vars not set)
     tools = create_tools(
         rag_corpus_resource=config.RAG_CORPUS_RESOURCE,
         similarity_top_k=config.RAG_SIMILARITY_TOP_K,
         vector_distance_threshold=config.RAG_VECTOR_DISTANCE_THRESHOLD,
+        project=config.GCP_PROJECT_ID,
+        location=config.GCP_LOCATION,
+        vector_search_index_endpoint=config.VECTOR_SEARCH_INDEX_ENDPOINT,
+        deployed_index_id=config.VECTOR_SEARCH_DEPLOYED_INDEX_ID,
+        embedding_model=config.EMBEDDING_MODEL,
+        gcs_bucket=config.GCS_BUCKET,
     )
 
     # Build instruction plugin
