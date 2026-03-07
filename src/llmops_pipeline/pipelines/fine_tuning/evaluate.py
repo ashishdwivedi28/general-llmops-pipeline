@@ -74,13 +74,9 @@ class EvaluateFineTunedJob(Job, frozen=True):
 
         # Log to experiment
         with self.vertex_ai_service.run_context("fine-tuning-eval"):
-            self.vertex_ai_service.log_metrics(
-                {f"tuned_{k}": v for k, v in tuned_scores.items()}
-            )
+            self.vertex_ai_service.log_metrics({f"tuned_{k}": v for k, v in tuned_scores.items()})
             if base_scores:
-                self.vertex_ai_service.log_metrics(
-                    {f"base_{k}": v for k, v in base_scores.items()}
-                )
+                self.vertex_ai_service.log_metrics({f"base_{k}": v for k, v in base_scores.items()})
             self.vertex_ai_service.log_params(
                 {
                     "tuned_model": self.tuned_model_name,
@@ -126,7 +122,6 @@ class EvaluateFineTunedJob(Job, frozen=True):
 
     def _evaluate_model(self, model_name: str, test_pairs: list[dict]) -> dict[str, float]:
         """Evaluate a model using Gemini-as-judge."""
-        logger = self.logger_service.logger()
         from langchain_google_vertexai import ChatVertexAI
 
         judge = ChatVertexAI(

@@ -37,8 +37,6 @@ class SmokeTest:
 
     def run(self) -> SmokeTestResult:
         """Execute all smoke tests and return results."""
-        import requests
-
         start = time.monotonic()
         checks: list[dict[str, T.Any]] = []
 
@@ -162,9 +160,7 @@ class CanaryManager:
                 time.sleep(10)  # Let the new traffic settle
                 smoker = SmokeTest(smoke_test_url)
                 smoke_result = smoker.run()
-                results["smoke_tests"].append(
-                    {"step_pct": pct, "result": smoke_result}
-                )
+                results["smoke_tests"].append({"step_pct": pct, "result": smoke_result})
 
                 if not smoke_result["passed"]:
                     logger.warning(
@@ -186,17 +182,14 @@ class CanaryManager:
         results["final_traffic"] = {new_revision: 100}
         return results
 
-    def _set_traffic_split(
-        self, revision: str, percentage: int, old_revision: str
-    ) -> bool:
+    def _set_traffic_split(self, revision: str, percentage: int, old_revision: str) -> bool:
         """Set traffic split via Cloud Run Admin API."""
         try:
             from google.cloud import run_v2
 
             client = run_v2.ServicesClient()
             service_path = (
-                f"projects/{self._project}/locations/{self._region}"
-                f"/services/{self._service}"
+                f"projects/{self._project}/locations/{self._region}/services/{self._service}"
             )
 
             service = client.get_service(name=service_path)

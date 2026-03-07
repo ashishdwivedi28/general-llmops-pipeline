@@ -50,12 +50,8 @@ class InteractionLogger:
                 from google.cloud import bigquery
 
                 self.bq_client = bigquery.Client(project=project_id)
-                self.bq_interactions_ref = (
-                    f"{project_id}.{bq_dataset}.{bq_interactions_table}"
-                )
-                self.bq_feedback_ref = (
-                    f"{project_id}.{bq_dataset}.{bq_feedback_table}"
-                )
+                self.bq_interactions_ref = f"{project_id}.{bq_dataset}.{bq_interactions_table}"
+                self.bq_feedback_ref = f"{project_id}.{bq_dataset}.{bq_feedback_table}"
                 logger.info(
                     "BigQuery logging enabled: interactions=%s, feedback=%s",
                     self.bq_interactions_ref,
@@ -101,9 +97,7 @@ class InteractionLogger:
         # BigQuery — interactions table
         if self.bq_client and self.bq_interactions_ref:
             try:
-                errors = self.bq_client.insert_rows_json(
-                    self.bq_interactions_ref, [record]
-                )
+                errors = self.bq_client.insert_rows_json(self.bq_interactions_ref, [record])
                 if errors:
                     logger.warning("BigQuery insert errors (interactions): %s", errors)
             except Exception as e:
@@ -135,9 +129,7 @@ class InteractionLogger:
         # BigQuery — feedback table
         if self.bq_client and self.bq_feedback_ref:
             try:
-                errors = self.bq_client.insert_rows_json(
-                    self.bq_feedback_ref, [record]
-                )
+                errors = self.bq_client.insert_rows_json(self.bq_feedback_ref, [record])
                 if errors:
                     logger.warning("BigQuery insert errors (feedback): %s", errors)
             except Exception as e:

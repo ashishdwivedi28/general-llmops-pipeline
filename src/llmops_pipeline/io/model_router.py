@@ -186,10 +186,9 @@ def _calculate_cost(
     built-in ``completion_cost`` helper.
     """
     if spec.cost_per_1k_input > 0 or spec.cost_per_1k_output > 0:
-        return (
-            (input_tokens / 1000.0) * spec.cost_per_1k_input
-            + (output_tokens / 1000.0) * spec.cost_per_1k_output
-        )
+        return (input_tokens / 1000.0) * spec.cost_per_1k_input + (
+            output_tokens / 1000.0
+        ) * spec.cost_per_1k_output
     # Attempt LiteLLM cost calculation
     try:
         import litellm
@@ -363,9 +362,7 @@ class ModelRouter:
                             type_cfg.max_retries + 1,
                         )
 
-        raise RuntimeError(
-            f"All models in the {model_type} chain failed. Last error: {last_error}"
-        )
+        raise RuntimeError(f"All models in the {model_type} chain failed. Last error: {last_error}")
 
     # ------------------------------------------------------------------
     # Public API

@@ -139,22 +139,34 @@ def diagnose_degradation(
 
     if rel < relevance_threshold:
         categories.append(
-            {"name": "low_relevance", "detected": True, "confidence": 0.8,
-             "evidence": f"answer_relevance={rel:.3f}"}
+            {
+                "name": "low_relevance",
+                "detected": True,
+                "confidence": 0.8,
+                "evidence": f"answer_relevance={rel:.3f}",
+            }
         )
         actions.append("retrigger_feature_engineering")
 
     if faith < faithfulness_threshold:
         categories.append(
-            {"name": "low_faithfulness", "detected": True, "confidence": 0.75,
-             "evidence": f"faithfulness={faith:.3f}"}
+            {
+                "name": "low_faithfulness",
+                "detected": True,
+                "confidence": 0.75,
+                "evidence": f"faithfulness={faith:.3f}",
+            }
         )
         actions.append("review_prompt_version")
 
     if tox > toxicity_threshold:
         categories.append(
-            {"name": "high_toxicity", "detected": True, "confidence": 0.9,
-             "evidence": f"toxicity={tox:.3f}"}
+            {
+                "name": "high_toxicity",
+                "detected": True,
+                "confidence": 0.9,
+                "evidence": f"toxicity={tox:.3f}",
+            }
         )
         actions.append("rollback_prompt_version")
 
@@ -178,8 +190,12 @@ def diagnose_degradation(
             err = row.error_rate or 0.0
             if p95 > latency_spike_ms or err > error_rate_threshold:
                 categories.append(
-                    {"name": "infrastructure_issue", "detected": True, "confidence": 0.7,
-                     "evidence": f"p95={p95:.0f}ms, error_rate={err:.2%}"}
+                    {
+                        "name": "infrastructure_issue",
+                        "detected": True,
+                        "confidence": 0.7,
+                        "evidence": f"p95={p95:.0f}ms, error_rate={err:.2%}",
+                    }
                 )
                 actions.append("investigate_infrastructure")
     except Exception:
@@ -237,11 +253,13 @@ def remediate(
                 bucket = client.bucket(gcs_bucket)
                 blob = bucket.blob("signals/retrigger_fe.json")
                 blob.upload_from_string(
-                    json.dumps({
-                        "triggered_at": datetime.now(timezone.utc).isoformat(),
-                        "reason": "quality_degradation",
-                        "primary_cause": diagnosis.get("primary_cause", "unknown"),
-                    }),
+                    json.dumps(
+                        {
+                            "triggered_at": datetime.now(timezone.utc).isoformat(),
+                            "reason": "quality_degradation",
+                            "primary_cause": diagnosis.get("primary_cause", "unknown"),
+                        }
+                    ),
                     content_type="application/json",
                 )
                 results[action] = "triggered"
