@@ -3,6 +3,8 @@ job:
   KIND: MonitoringJob
   project: ${oc.env:GCP_PROJECT_ID}
   location: ${oc.env:GCP_LOCATION,us-central1}
+  gcs_bucket: "${oc.env:GCP_PROJECT_ID}-llmops-dev"
+  app_id: ${oc.env:APP_ID,llmops-app}
   model_display_name: "llmops-rag-chatbot"
   monitoring_window_days: 7
   metric_thresholds:

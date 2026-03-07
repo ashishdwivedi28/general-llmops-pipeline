@@ -3,8 +3,9 @@
 The top-level orchestrator that chains:
   1. Feature Engineering Pipeline
   2. Deployment Pipeline
-  3. Monitoring Pipeline
+  3. Monitoring Pipeline (with diagnosis + remediation)
   4. (Conditional) Re-trigger Feature Engineering if degradation detected
+  5. (Optional) Fine-tuning Pipeline
 
 This is the entry point for fully automated LLMOps.
 """
@@ -21,7 +22,9 @@ from kfp_pipelines.feature_engineering import (
     ingest_documents,
 )
 from kfp_pipelines.monitoring import (
+    diagnose_degradation,
     monitor_production_quality,
+    remediate,
 )
 
 
@@ -67,12 +70,17 @@ def master_pipeline(
     # Monitoring
     monitoring_window_days: int = 7,
     log_filter: str = 'resource.type="cloud_run_revision" AND jsonPayload.type="inference"',
+    # Self-healing
+    bq_dataset: str = "llmops",
+    latency_spike_ms: float = 5000.0,
+    error_rate_threshold: float = 0.05,
+    auto_retrigger: bool = True,
 ):
     """Master LLMOps Pipeline — fully automated end-to-end.
 
     Phases run sequentially:
       Phase 1 (Feature Engineering) → Phase 2 (Deployment) → Phase 3 (Monitoring)
-      Phase 4 triggers only if Phase 3 detects quality degradation.
+      Phase 4 (Self-Healing): Diagnose + Remediate + conditional re-trigger
     """
 
     # ---- Phase 1: Feature Engineering ----
@@ -146,8 +154,33 @@ def master_pipeline(
     ).set_display_name("phase3-check-degradation")
     degraded_check.after(monitor_task)
 
-    # ---- Phase 4: Conditional Re-trigger (only if degraded) ----
-    with dsl.Condition(degraded_check.output == True, name="phase-4-retrigger"):  # noqa: E712
+    # ---- Phase 4: Self-Healing (only if degraded) ----
+    with dsl.Condition(degraded_check.output == True, name="phase-4-self-healing"):  # noqa: E712
+
+        # Step 4a: Diagnose root cause
+        diag_task = diagnose_degradation(
+            project=project,
+            location=location,
+            monitoring_result_json=monitor_task.output,
+            relevance_threshold=relevance_threshold,
+            faithfulness_threshold=faithfulness_threshold,
+            toxicity_threshold=toxicity_threshold,
+            bq_dataset=bq_dataset,
+            latency_spike_ms=latency_spike_ms,
+            error_rate_threshold=error_rate_threshold,
+        ).set_display_name("phase4-diagnose")
+
+        # Step 4b: Remediate
+        remed_task = remediate(
+            project=project,
+            location=location,
+            gcs_bucket=gcs_bucket,
+            diagnosis_json=diag_task.output,
+            auto_retrigger=auto_retrigger,
+        ).set_display_name("phase4-remediate")
+        remed_task.after(diag_task)
+
+        # Step 4c: Conditional re-trigger Feature Engineering
         retrigger_db = create_vector_db(
             project=project,
             location=location,
@@ -157,6 +190,7 @@ def master_pipeline(
             embedding_model=embedding_model,
             embedding_dimensions=embedding_dimensions,
         ).set_display_name("retrigger-create-vector-db")
+        retrigger_db.after(remed_task)
 
         retrigger_ingest = ingest_documents(
             project=project,

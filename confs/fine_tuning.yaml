@@ -1,0 +1,44 @@
+# ==============================================================================
+# Fine-Tuning Pipeline Configuration
+# ==============================================================================
+# Controls fine-tuning of LLMs using production feedback data.
+# This pipeline is triggered when sufficient high-quality feedback is collected.
+#
+# Flow: prepare_dataset → train → evaluate → (optional deploy)
+# ==============================================================================
+
+job:
+  KIND: FineTuningJob
+
+  project: ${oc.env:GCP_PROJECT_ID,}
+  location: ${oc.env:GCP_LOCATION,us-central1}
+  gcs_bucket: ${oc.env:GCS_BUCKET,}
+
+  # App identifier for manifest tracking
+  app_id: "llmops-app"
+
+  # --- Dataset Preparation ---
+  bq_dataset: "llmops"
+  bq_interactions_table: "interactions"
+  bq_feedback_table: "feedback"
+  min_rating: 4                      # Only use interactions rated >= 4
+  min_samples: 100                   # Minimum samples to proceed
+  max_samples: 10000                 # Cap for cost control
+  output_gcs_path: "fine_tuning/datasets/"
+  test_split_ratio: 0.2
+
+  # --- Training ---
+  base_model: "gemini-2.0-flash"     # Model to fine-tune
+  display_name: "llmops-fine-tuned"
+  epochs: 3
+  learning_rate_multiplier: 1.0
+  adapter_size: 4                    # LoRA adapter size (1, 4, 8, 16)
+
+  # --- Evaluation ---
+  quality_gate:
+    answer_relevance: 0.75           # Must beat this to deploy
+    faithfulness: 0.70
+  compare_with_base: true            # A/B compare base vs fine-tuned
+
+  # --- Deployment ---
+  auto_deploy: false                 # If true, auto-promote to serving after eval pass

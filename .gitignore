@@ -57,8 +57,9 @@ terraform/main.tf.bak
 # Docker
 *.tar
 
-# Poetry
+# Poetry / uv
 poetry.lock
+uv.lock
 
 # Logs
 *.log
@@ -71,3 +72,9 @@ Desktop.ini
 # ML artifacts
 mlruns/
 outputs/
+
+# Local manifests (pipeline artifact bridge — local dev only)
+.manifests/
+
+# Local prompts (prompt registry — local dev only)
+.prompts/

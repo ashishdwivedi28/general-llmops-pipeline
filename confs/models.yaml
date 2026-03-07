@@ -1,0 +1,57 @@
+# Model Routing Configuration
+# ============================================================================
+# Configures the Model Abstraction Layer (model_router.py).
+# Three independent sections: chat, embedding, evaluation.
+# Each has a primary model and optional fallback chain.
+#
+# Model names follow LiteLLM conventions:
+#   - vertex_ai/gemini-2.0-flash
+#   - vertex_ai/text-embedding-004
+#   - openai/gpt-4o
+#   - anthropic/claude-sonnet-4-20250514
+# ============================================================================
+
+chat:
+  primary:
+    name: "vertex_ai/gemini-2.0-flash"
+    provider: "vertex_ai"
+    max_tokens: 2048
+    temperature: 0.1
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+  fallback:
+    - name: "vertex_ai/gemini-2.0-flash-lite"
+      provider: "vertex_ai"
+      max_tokens: 2048
+      temperature: 0.1
+      cost_per_1k_input: 0.0
+      cost_per_1k_output: 0.0
+  max_retries: 2
+  retry_base_delay: 1.0
+  timeout: 60
+
+embedding:
+  primary:
+    name: "vertex_ai/text-embedding-004"
+    provider: "vertex_ai"
+    max_tokens: 0
+    temperature: 0.0
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+  fallback: []
+  max_retries: 2
+  retry_base_delay: 1.0
+  timeout: 60
+
+evaluation:
+  primary:
+    name: "vertex_ai/gemini-2.0-flash"
+    provider: "vertex_ai"
+    max_tokens: 2048
+    temperature: 0.0
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+  fallback: []
+  max_retries: 2
+  retry_base_delay: 1.0
+  timeout: 120
