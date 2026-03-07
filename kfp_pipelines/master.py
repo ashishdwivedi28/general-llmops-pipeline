@@ -156,7 +156,6 @@ def master_pipeline(
 
     # ---- Phase 4: Self-Healing (only if degraded) ----
     with dsl.Condition(degraded_check.output == True, name="phase-4-self-healing"):  # noqa: E712
-
         # Step 4a: Diagnose root cause
         diag_task = diagnose_degradation(
             project=project,

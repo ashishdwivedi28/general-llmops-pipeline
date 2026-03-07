@@ -111,7 +111,10 @@ class RemediateJob(Job, frozen=True):
                 f'"reason": "quality_degradation"}}',
                 content_type="application/json",
             )
-            logger.info("Wrote retrigger signal to gs://{}/signals/retrigger_fe.json", self.gcs_bucket)
+            logger.info(
+                "Wrote retrigger signal to gs://%s/signals/retrigger_fe.json",
+                self.gcs_bucket,
+            )
             return "triggered"
         except Exception as exc:
             logger.warning("Failed to write retrigger signal: {}", exc)

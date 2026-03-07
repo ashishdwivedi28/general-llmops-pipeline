@@ -24,6 +24,11 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+try:
+    from google.cloud import storage
+except ImportError:
+    storage = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 
@@ -129,9 +134,7 @@ def write_manifest(
     Returns:
         The ``gs://`` URI of the written manifest.
     """
-    manifest_dict = manifest.model_copy(
-        update={"updated_at": _now_iso()}
-    ).model_dump(mode="json")
+    manifest_dict = manifest.model_copy(update={"updated_at": _now_iso()}).model_dump(mode="json")
 
     blob_path = _gcs_manifest_path(manifest.app_id)
 
@@ -140,8 +143,6 @@ def write_manifest(
         return _write_local(manifest_dict, manifest.app_id)
 
     try:
-        from google.cloud import storage
-
         client = storage.Client(project=project or None)
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_path)
@@ -174,17 +175,17 @@ def read_manifest(
         return _read_local(app_id)
 
     try:
-        from google.cloud import storage
-
         client = storage.Client(project=project or None)
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_path)
 
         if not blob.exists():
-            logger.info("No manifest found at gs://%s/%s — returning default", bucket_name, blob_path)
-            return PipelineManifest(
-                app_id=app_id, created_at=_now_iso(), version="0"
+            logger.info(
+                "No manifest found at gs://%s/%s — returning default",
+                bucket_name,
+                blob_path,
             )
+            return PipelineManifest(app_id=app_id, created_at=_now_iso(), version="0")
 
         content = blob.download_as_text()
         data = json.loads(content)

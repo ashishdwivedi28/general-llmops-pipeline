@@ -20,7 +20,6 @@ Design notes:
 from __future__ import annotations
 
 import hashlib
-import hmac
 import logging
 import time
 from collections import defaultdict
@@ -105,12 +104,8 @@ class InMemoryRateLimiter:
         minute_ago = now - 60
         day_ago = now - 86_400
 
-        self._minute_buckets[key] = [
-            t for t in self._minute_buckets[key] if t > minute_ago
-        ]
-        self._day_buckets[key] = [
-            t for t in self._day_buckets[key] if t > day_ago
-        ]
+        self._minute_buckets[key] = [t for t in self._minute_buckets[key] if t > minute_ago]
+        self._day_buckets[key] = [t for t in self._day_buckets[key] if t > day_ago]
 
         if len(self._minute_buckets[key]) >= self.rpm:
             return False, "Rate limit exceeded: too many requests per minute"
@@ -173,9 +168,7 @@ class GatewayMiddleware(BaseHTTPMiddleware):
 
         # Build API key set (hash for constant-time comparison)
         raw_keys: list[str] = self.auth_cfg.get("api_keys", []) or []
-        self._api_key_hashes: set[str] = {
-            hashlib.sha256(k.encode()).hexdigest() for k in raw_keys
-        }
+        self._api_key_hashes: set[str] = {hashlib.sha256(k.encode()).hexdigest() for k in raw_keys}
         self._api_key_header: str = "X-API-Key"
         for m in self.auth_cfg.get("methods", []):
             if m.get("type") == "api_key":
@@ -237,9 +230,7 @@ class GatewayMiddleware(BaseHTTPMiddleware):
 
     # --- dispatch ---
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         """Execute the gateway checks before forwarding the request."""
         path = request.url.path
         route_cfg = self._route_config(path)

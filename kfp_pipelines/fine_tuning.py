@@ -77,13 +77,15 @@ def prepare_finetuning_dataset(
         "\n".join(test_data), content_type="application/jsonl"
     )
 
-    return json.dumps({
-        "status": "ready",
-        "num_train": len(train_data),
-        "num_test": len(test_data),
-        "train_gcs_uri": f"gs://{gcs_bucket}/{train_path}",
-        "test_gcs_uri": f"gs://{gcs_bucket}/{test_path}",
-    })
+    return json.dumps(
+        {
+            "status": "ready",
+            "num_train": len(train_data),
+            "num_test": len(test_data),
+            "train_gcs_uri": f"gs://{gcs_bucket}/{train_path}",
+            "test_gcs_uri": f"gs://{gcs_bucket}/{test_path}",
+        }
+    )
 
 
 @dsl.component(
@@ -127,12 +129,14 @@ def submit_finetuning_job(
     if hasattr(tuning_job, "tuned_model_endpoint_name"):
         tuned_name = tuning_job.tuned_model_endpoint_name
 
-    return json.dumps({
-        "status": "submitted",
-        "tuning_job_name": tuning_job.resource_name,
-        "tuned_model_name": tuned_name,
-        "base_model": base_model,
-    })
+    return json.dumps(
+        {
+            "status": "submitted",
+            "tuning_job_name": tuning_job.resource_name,
+            "tuned_model_name": tuned_name,
+            "base_model": base_model,
+        }
+    )
 
 
 @dsl.component(
@@ -203,12 +207,14 @@ def evaluate_finetuned_model(
         and avgs["faithfulness"] >= faithfulness_threshold
     )
 
-    return json.dumps({
-        "status": "passed" if passed else "blocked",
-        "passed": passed,
-        "scores": avgs,
-        "num_test_samples": len(test_pairs),
-    })
+    return json.dumps(
+        {
+            "status": "passed" if passed else "blocked",
+            "passed": passed,
+            "scores": avgs,
+            "num_test_samples": len(test_pairs),
+        }
+    )
 
 
 @dsl.pipeline(

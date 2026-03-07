@@ -145,9 +145,7 @@ class TaskDetector:
             logger.warning("LLM classification failed: %s", exc)
             return None
 
-    def _build_result(
-        self, task_id: str, confidence: float, method: str
-    ) -> TaskDetectionResult:
+    def _build_result(self, task_id: str, confidence: float, method: str) -> TaskDetectionResult:
         """Build a TaskDetectionResult from a task_id."""
         task_cfg = self._tasks.get(task_id, self._tasks.get(self._default_task, {}))
         return TaskDetectionResult(
