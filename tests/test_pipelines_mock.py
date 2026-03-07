@@ -10,12 +10,29 @@ Tests ensure that pipeline jobs:
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("GCS_BUCKET", "test-bucket")
+
+
+@pytest.fixture(autouse=True)
+def mock_vertex_ai_services():
+    """Prevent real Vertex AI / GCP calls in all pipeline unit tests.
+
+    ``VertexAIService.start()`` calls ``aiplatform.init()`` which requires
+    Application Default Credentials.  We patch the entire ``aiplatform``
+    module-reference inside ``services`` so no network or auth call is made.
+    """
+    with patch("llmops_pipeline.io.services.aiplatform") as mock_aip:
+        mock_aip.init.return_value = None
+        mock_aip.start_run.return_value = None
+        mock_aip.end_run.return_value = None
+        mock_aip.log_metrics.return_value = None
+        mock_aip.log_params.return_value = None
+        yield mock_aip
 
 
 class TestPipelineJobRegistry:
