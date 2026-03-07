@@ -1,16 +1,25 @@
 """Agent tools — RAG retrieval via Vertex AI RAG Engine or Vector Search.
 
-Supports three retrieval modes (in priority order):
+Supports four retrieval modes (in priority order):
 1. ADK VertexAiSearchTool — when RAG_CORPUS_RESOURCE is set
 2. Direct Vertex AI Vector Search — when VECTOR_SEARCH_INDEX_ENDPOINT is set
-3. Auto-discovery from GCS — reads pipeline_outputs/vector_db_config.json from GCS_BUCKET
-4. Pure LLM mode — no retrieval, agent answers from parametric knowledge only
+3. **Manifest-based discovery** — reads pipeline artifact manifest from GCS for
+   vector endpoint, deployed index ID, embedding model, and chunk metadata
+4. Legacy auto-discovery from GCS — reads pipeline_outputs/vector_db_config.json
+5. Pure LLM mode — no retrieval, agent answers from parametric knowledge only
+
+The manifest (mode 3) is the preferred bridge between the offline pipeline system
+and the online serving layer.  See ``llmops_pipeline.io.manifest`` for details.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from llmops_pipeline.io.manifest import PipelineManifest
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +51,29 @@ def _auto_discover_vector_db(project: str, gcs_bucket: str) -> dict:
         logger.warning("Could not auto-discover vector DB from GCS: %s", e)
 
     return {}
+
+
+def _resolve_from_manifest(manifest: "PipelineManifest | None") -> dict:
+    """Extract vector-search config from the pipeline artifact manifest.
+
+    Returns a dict with keys matching ``_auto_discover_vector_db`` format
+    so the rest of the tool-creation logic can consume it uniformly.
+    """
+    if manifest is None:
+        return {}
+    fe = manifest.feature_engineering
+    if not fe.vector_endpoint_resource_name:
+        return {}
+    logger.info(
+        "Resolved vector search from manifest: endpoint=%s, index_id=%s",
+        fe.vector_endpoint_resource_name,
+        fe.deployed_index_id,
+    )
+    return {
+        "endpoint_resource_name": fe.vector_endpoint_resource_name,
+        "deployed_index_id": fe.deployed_index_id,
+        "embedding_model": fe.embedding_model,
+    }
 
 
 def _create_vector_search_tool(
@@ -119,14 +151,16 @@ def create_tools(
     deployed_index_id: str = "",
     embedding_model: str = "text-embedding-004",
     gcs_bucket: str = "",
+    manifest: "PipelineManifest | None" = None,
 ) -> list:
     """Create all tools for the agent.
 
     Retrieval mode priority:
     1. RAG_CORPUS_RESOURCE → ADK VertexAiSearchTool (Vertex AI Search / RAG Engine)
-    2. VECTOR_SEARCH_INDEX_ENDPOINT → Direct Vector Search query
-    3. GCS_BUCKET auto-discovery → Reads pipeline output, then uses Vector Search
-    4. No retrieval → Agent answers from parametric knowledge only
+    2. VECTOR_SEARCH_INDEX_ENDPOINT → Direct Vector Search query (explicit env var)
+    3. **Manifest** → Pipeline artifact manifest vector endpoint (the bridge)
+    4. GCS_BUCKET auto-discovery → Reads pipeline output, then uses Vector Search
+    5. No retrieval → Agent answers from parametric knowledge only
     """
     tools = []
 
@@ -141,13 +175,20 @@ def create_tools(
         logger.info("Retrieval mode: ADK VertexAiSearchTool")
         return tools
 
-    # Mode 2/3: Direct Vector Search (explicit config or auto-discovery from GCS)
+    # Mode 2: Explicit env var config
     vs_endpoint = vector_search_index_endpoint
     vs_index_id = deployed_index_id
     vs_embedding = embedding_model
 
+    # Mode 3: Manifest-based discovery (the bridge)
+    if not vs_endpoint and manifest is not None:
+        manifest_cfg = _resolve_from_manifest(manifest)
+        vs_endpoint = manifest_cfg.get("endpoint_resource_name", "")
+        vs_index_id = manifest_cfg.get("deployed_index_id", vs_index_id)
+        vs_embedding = manifest_cfg.get("embedding_model", vs_embedding)
+
+    # Mode 4: Legacy auto-discovery from GCS
     if not vs_endpoint and gcs_bucket:
-        # Auto-discover from Pipeline Phase 1 outputs
         db_config = _auto_discover_vector_db(project, gcs_bucket)
         vs_endpoint = db_config.get("endpoint_resource_name", "")
         vs_index_id = db_config.get("deployed_index_id", "")
@@ -167,7 +208,7 @@ def create_tools(
         except Exception as e:
             logger.warning("Failed to create Vector Search tool: %s", e)
 
-    # Mode 4: No retrieval
+    # Mode 5: No retrieval
     if not tools:
         logger.warning("No retrieval configured — agent runs in pure LLM mode")
 

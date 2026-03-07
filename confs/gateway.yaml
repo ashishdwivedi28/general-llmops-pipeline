@@ -1,0 +1,58 @@
+# API Gateway Configuration
+# ============================================================================
+# Controls authentication, rate limiting, and RBAC for the serving layer.
+# Loaded by serving/gateway.py middleware at startup.
+# ============================================================================
+
+authentication:
+  # Enable/disable gateway middleware globally
+  enabled: false  # Set to true in production
+
+  methods:
+    - type: "api_key"
+      header: "X-API-Key"
+    - type: "jwt"
+      issuer: "https://accounts.google.com"
+      audiences: []
+
+  # API keys for development / testing (in production use Secret Manager)
+  api_keys: []
+
+rate_limiting:
+  enabled: false  # Set to true in production
+  default:
+    requests_per_minute: 60
+    requests_per_day: 10000
+  tiers:
+    premium:
+      requests_per_minute: 300
+      requests_per_day: 100000
+
+routes:
+  /chat:
+    methods: ["POST"]
+    auth: required
+    roles: ["user", "admin"]
+  /feedback:
+    methods: ["POST"]
+    auth: required
+    roles: ["user", "admin"]
+  /admin/pipeline:
+    methods: ["POST"]
+    auth: required
+    roles: ["admin"]
+  /health:
+    methods: ["GET"]
+    auth: none
+  /ready:
+    methods: ["GET"]
+    auth: none
+  /manifest:
+    methods: ["GET"]
+    auth: optional
+    roles: ["admin"]
+
+# Cost attribution headers (forwarded to cost tracker)
+cost_attribution:
+  app_id_header: "X-App-ID"
+  user_id_header: "X-User-ID"

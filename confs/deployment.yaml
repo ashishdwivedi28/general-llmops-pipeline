@@ -4,7 +4,10 @@ job:
   project: ${oc.env:GCP_PROJECT_ID}
   location: ${oc.env:GCP_LOCATION,us-central1}
   gcs_bucket: "${oc.env:GCP_PROJECT_ID}-llmops-dev"
+  app_id: ${oc.env:APP_ID,llmops-app}
   model_display_name: "llmops-rag-chatbot"
+  active_model: "gemini-2.0-flash"
+  active_prompt_version: "v1"
   config_yaml_path: "confs/rag_chain_config.yaml"
   eval_dataset_csv: "data/datasets/rag_eval.csv"
   metric_thresholds:

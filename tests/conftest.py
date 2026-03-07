@@ -14,6 +14,7 @@ def sample_config() -> dict:
             "project": "test-project",
             "location": "us-central1",
             "gcs_bucket": "test-bucket",
+            "app_id": "test-app",
             "embedding_model": "text-embedding-004",
             "embedding_dimensions": 768,
             "documents_path": "data/documents/",
@@ -32,7 +33,10 @@ def sample_deployment_config() -> dict:
             "project": "test-project",
             "location": "us-central1",
             "gcs_bucket": "test-bucket",
+            "app_id": "test-app",
             "model_display_name": "test-model",
+            "active_model": "gemini-2.0-flash",
+            "active_prompt_version": "v1",
             "eval_dataset_csv": "data/datasets/rag_eval.csv",
             "metric_thresholds": {
                 "answer_relevance": 0.70,
@@ -51,6 +55,8 @@ def sample_monitoring_config() -> dict:
             "KIND": "MonitoringJob",
             "project": "test-project",
             "location": "us-central1",
+            "gcs_bucket": "test-bucket",
+            "app_id": "test-app",
             "monitoring_window_days": 7,
             "metric_thresholds": {
                 "answer_relevance": 0.70,

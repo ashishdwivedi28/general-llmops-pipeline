@@ -71,6 +71,8 @@ on:
   pull_request:
     branches:
       - main          # Lint & Test on PR targeting main
+  schedule:
+    - cron: "0 2 * * *"  # Daily monitoring pipeline at 2 AM UTC
   workflow_dispatch:
     inputs:
       environment:
@@ -271,6 +273,26 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
+      - name: Fetch secrets from Secret Manager
+        id: secrets
+        run: |
+          # Fetch API keys and provider keys if they exist; do not fail if absent
+          API_KEYS=$(gcloud secrets versions access latest \
+            --secret="llmops-api-keys" --project="${{ vars.GCP_PROJECT_ID }}" 2>/dev/null || echo "")
+          OPENAI_KEY=$(gcloud secrets versions access latest \
+            --secret="llmops-openai-key" --project="${{ vars.GCP_PROJECT_ID }}" 2>/dev/null || echo "")
+          ANTHROPIC_KEY=$(gcloud secrets versions access latest \
+            --secret="llmops-anthropic-key" --project="${{ vars.GCP_PROJECT_ID }}" 2>/dev/null || echo "")
+
+          # Mask in logs
+          [ -n "$API_KEYS" ]     && echo "::add-mask::${API_KEYS}"
+          [ -n "$OPENAI_KEY" ]   && echo "::add-mask::${OPENAI_KEY}"
+          [ -n "$ANTHROPIC_KEY" ] && echo "::add-mask::${ANTHROPIC_KEY}"
+
+          echo "api_keys=${API_KEYS}"         >> "$GITHUB_OUTPUT"
+          echo "openai_key=${OPENAI_KEY}"     >> "$GITHUB_OUTPUT"
+          echo "anthropic_key=${ANTHROPIC_KEY}" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
@@ -279,7 +301,10 @@ jobs:
           image: ${{ steps.image.outputs.uri }}
           flags: >-
             --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
-            --set-env-vars=GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCP_LOCATION=${{ vars.GCP_REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }}
+            --set-env-vars=GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCP_LOCATION=${{ vars.GCP_REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }},BQ_DATASET=llmops,SECRET_MANAGER_ENABLED=true
+          env_vars: |
+            OPENAI_API_KEY=${{ steps.secrets.outputs.openai_key }}
+            ANTHROPIC_API_KEY=${{ steps.secrets.outputs.anthropic_key }}
 
       - name: Deployment summary
         run: |
@@ -327,3 +352,48 @@ jobs:
             --bucket "${{ secrets.GCS_BUCKET }}" \
             --location "${{ vars.GCP_REGION }}" \
             --service-account "${{ secrets.WIF_SERVICE_ACCOUNT }}"
+
+  # ==============================================================================
+  # STAGE 5: Scheduled Monitoring Pipeline
+  # Triggers on cron schedule (daily) to run the monitoring pipeline.
+  # ==============================================================================
+  scheduled-monitoring:
+    name: "Scheduled Monitoring Pipeline"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipeline dependencies
+        run: pip install kfp google-cloud-aiplatform
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Compile and submit monitoring pipeline
+        run: |
+          python -m kfp_pipelines.compile_and_run \
+            --pipeline monitoring \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --bucket "${{ secrets.GCS_BUCKET }}" \
+            --location "${{ vars.GCP_REGION }}" \
+            --service-account "${{ secrets.WIF_SERVICE_ACCOUNT }}"
+
+      - name: Monitoring summary
+        run: |
+          echo "### Scheduled Monitoring Pipeline Submitted" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Trigger:** cron schedule" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Pipeline:** monitoring" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Project:** ${{ vars.GCP_PROJECT_ID }}" >> "$GITHUB_STEP_SUMMARY"

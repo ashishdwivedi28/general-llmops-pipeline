@@ -1,0 +1,62 @@
+# ==============================================================================
+# HR Chatbot — Application Configuration
+# ==============================================================================
+# Example app-specific config. The serving layer loads this to configure
+# task detection, app-specific prompts, and tool selection.
+#
+# To add a new app: copy this file, change app_id and tasks, done.
+# ==============================================================================
+
+app_id: "hr-chatbot"
+display_name: "HR Policy Assistant"
+description: "Answers questions about company HR policies using RAG over policy documents."
+
+# --- Task Detection ---
+# Maps user intents to different handling strategies.
+# The task_detection module classifies the query, then routes to the right tools/prompt.
+task_detection:
+  enabled: true
+  method: "keyword_and_llm"   # keyword | llm | keyword_and_llm
+  default_task: "general_qa"
+
+  tasks:
+    general_qa:
+      description: "General HR policy questions"
+      keywords: ["policy", "leave", "benefits", "salary", "handbook"]
+      tools: ["search_policy_documents"]
+      prompt_template: "system_prompt"
+      model_tier: "primary"       # maps to models.yaml routing
+
+    onboarding:
+      description: "New employee onboarding process"
+      keywords: ["onboarding", "first day", "new hire", "orientation"]
+      tools: ["search_policy_documents", "search_onboarding_guide"]
+      prompt_template: "onboarding_prompt"
+      model_tier: "primary"
+
+    payroll:
+      description: "Payroll and compensation queries"
+      keywords: ["payroll", "salary", "compensation", "tax", "deduction"]
+      tools: ["search_policy_documents"]
+      prompt_template: "payroll_prompt"
+      model_tier: "primary"
+
+    chitchat:
+      description: "Non-HR small talk"
+      keywords: []
+      tools: []
+      prompt_template: "chitchat_prompt"
+      model_tier: "fallback"      # uses cheaper model
+
+# --- RAG Configuration ---
+rag:
+  index_endpoint: ""              # Set via env: MATCHING_ENGINE_ENDPOINT
+  embedding_model: "text-embedding-004"
+  top_k: 5
+  similarity_threshold: 0.7
+
+# --- Guardrails ---
+guardrails:
+  block_topics: ["politics", "religion", "personal_medical"]
+  max_response_length: 2000
+  require_source_citation: true
