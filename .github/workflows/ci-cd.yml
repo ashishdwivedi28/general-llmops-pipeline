@@ -305,8 +305,12 @@ jobs:
           image: ${{ steps.image.outputs.uri }}
           flags: >-
             --service-account=${{ secrets.AGENT_SERVICE_ACCOUNT }}
-            --set-env-vars=GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCP_LOCATION=${{ vars.GCP_REGION }},GCS_BUCKET=${{ secrets.GCS_BUCKET }},BQ_DATASET=llmops,SECRET_MANAGER_ENABLED=true
           env_vars: |
+            GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+            GCP_LOCATION=${{ vars.GCP_REGION }}
+            GCS_BUCKET=${{ secrets.GCS_BUCKET }}
+            BQ_DATASET=llmops
+            SECRET_MANAGER_ENABLED=true
             OPENAI_API_KEY=${{ steps.secrets.outputs.openai_key }}
             ANTHROPIC_API_KEY=${{ steps.secrets.outputs.anthropic_key }}
 
