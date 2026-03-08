@@ -22,8 +22,9 @@ resource "google_bigquery_dataset" "llmops" {
     managed_by  = "terraform"
   }
 
-  # Default table expiration: 365 days (configurable)
-  default_table_expiration_ms = 31536000000
+  # NOTE: default_table_expiration_ms is intentionally omitted.
+  # Individual tables set deletion_protection = false for dev flexibility.
+  # For production, set per-table expiration on the Terraform table resources.
 
   access {
     role          = "OWNER"
@@ -33,10 +34,10 @@ resource "google_bigquery_dataset" "llmops" {
     role          = "WRITER"
     user_by_email = var.agent_service_account_email
   }
-  access {
-    role          = "READER"
-    special_group = "projectReaders"
-  }
+  # SECURITY NOTE: projectReaders is intentionally removed.
+  # This dataset contains user interaction logs, feedback, and cost data.
+  # Grant explicit access only to users/SAs that need it.
+  # To grant analyst access: add a google_bigquery_dataset_iam_member resource.
 }
 
 # --- interactions table -------------------------------------------------------

@@ -245,21 +245,21 @@ resource "google_service_account_iam_member" "cicd_wif" {
 }
 
 # --- GitHub Variables & Secrets — Set manually after terraform apply ---------
-# Run: terraform output   to get values, then paste into the commands below.
+# Run: terraform output setup_instructions   to get the exact commands, then paste into your terminal.
 #
-# VARIABLES (non-sensitive — use gh CLI or GitHub web UI):
-#   gh variable set GCP_PROJECT_ID         --repo ashishdwivedi28/general-llmops-pipeline --body "project-3e17312f-26d8-4511-821"
-#   gh variable set GCP_REGION             --repo ashishdwivedi28/general-llmops-pipeline --body "us-central1"
-#   gh variable set ARTIFACT_REGISTRY_REPO --repo ashishdwivedi28/general-llmops-pipeline --body "llmops-agent-dev"
-#   gh variable set IMAGE_NAME             --repo ashishdwivedi28/general-llmops-pipeline --body "llmops-agent"
-#   gh variable set CLOUD_RUN_SERVICE_DEV  --repo ashishdwivedi28/general-llmops-pipeline --body "llmops-agent-dev"
-#   gh variable set TERRAFORM_STATE_BUCKET --repo ashishdwivedi28/general-llmops-pipeline --body "<terraform output terraform_state_bucket>"
+# VARIABLES (non-sensitive — use gh CLI):
+#   gh variable set GCP_PROJECT_ID         --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "YOUR_GCP_PROJECT_ID"
+#   gh variable set GCP_REGION             --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "us-central1"
+#   gh variable set ARTIFACT_REGISTRY_REPO --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "llmops-agent-dev"
+#   gh variable set IMAGE_NAME             --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "llmops-agent"
+#   gh variable set CLOUD_RUN_SERVICE_DEV  --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "llmops-agent-dev"
+#   gh variable set TERRAFORM_STATE_BUCKET --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "<terraform output terraform_state_bucket>"
 #
 # SECRETS (sensitive — must use gh CLI, cannot use web UI for WIF values):
-#   gh secret set WIF_PROVIDER          --repo ashishdwivedi28/general-llmops-pipeline --body "<terraform output wif_provider>"
-#   gh secret set WIF_SERVICE_ACCOUNT   --repo ashishdwivedi28/general-llmops-pipeline --body "<terraform output cicd_service_account>"
-#   gh secret set AGENT_SERVICE_ACCOUNT --repo ashishdwivedi28/general-llmops-pipeline --body "<terraform output agent_service_account>"
-#   gh secret set GCS_BUCKET            --repo ashishdwivedi28/general-llmops-pipeline --body "project-3e17312f-26d8-4511-821-llmops-dev"
+#   gh secret set WIF_PROVIDER          --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "<terraform output wif_provider>"
+#   gh secret set WIF_SERVICE_ACCOUNT   --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "<terraform output cicd_service_account>"
+#   gh secret set AGENT_SERVICE_ACCOUNT --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "<terraform output agent_service_account>"
+#   gh secret set GCS_BUCKET            --repo YOUR_GITHUB_USERNAME/YOUR_REPO_NAME --body "YOUR_GCP_PROJECT_ID-llmops-dev"
 
 # --- Outputs ------------------------------------------------------------------
 

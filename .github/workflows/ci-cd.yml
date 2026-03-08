@@ -32,7 +32,7 @@
 #   git push origin feature/my-short-description
 #
 #   # 5. Open PR on GitHub: feature/my-short-description → main
-#   #    - Go to https://github.com/ashishdwivedi28/general-llmops-pipeline
+#   #    - Go to https://github.com/<YOUR_GITHUB_USERNAME>/<YOUR_REPO_NAME>
 #   #    - Click "Compare & pull request"
 #   #    - Base: main, Compare: feature/my-short-description
 #   #    - Wait for CI to finish (green checkmark = pass, red = fail)

@@ -48,7 +48,7 @@ variable "api_gateway_enabled" {
 
 resource "google_api_gateway_api" "llmops" {
   count    = var.api_gateway_enabled ? 1 : 0
-  provider = google
+  provider = google-beta
   api_id   = "llmops-api-${var.environment}"
   project  = var.project_id
 
@@ -61,7 +61,7 @@ resource "google_api_gateway_api" "llmops" {
 
 resource "google_api_gateway_api_config" "llmops" {
   count         = var.api_gateway_enabled ? 1 : 0
-  provider      = google
+  provider      = google-beta
   api           = google_api_gateway_api.llmops[0].api_id
   api_config_id = "llmops-config-${var.environment}"
   project       = var.project_id
@@ -87,7 +87,7 @@ resource "google_api_gateway_api_config" "llmops" {
 
 resource "google_api_gateway_gateway" "llmops" {
   count      = var.api_gateway_enabled ? 1 : 0
-  provider   = google
+  provider   = google-beta
   api_config = google_api_gateway_api_config.llmops[0].id
   gateway_id = "llmops-gateway-${var.environment}"
   project    = var.project_id

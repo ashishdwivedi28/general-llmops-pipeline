@@ -1,5 +1,44 @@
-project_id                  = "your-gcp-project-id"
-region                      = "us-central1"
-environment                 = "dev"
+# ==============================================================================
+# terraform.tfvars.example — Copy this to terraform.tfvars and fill in values
+# ==============================================================================
+# DO NOT COMMIT terraform.tfvars — it is in .gitignore
+# SAFE TO COMMIT this example file
+# ==============================================================================
+
+# --- GCP Core -----------------------------------------------------------------
+project_id  = "your-gcp-project-id"
+region      = "us-central1"
+environment = "dev"   # dev | staging | prod
+
+# --- Service Accounts (copy from: cd terraform/bootstrap && terraform output) --
 agent_service_account_email = "llmops-agent-dev@your-gcp-project-id.iam.gserviceaccount.com"
-# docker_image              = "us-central1-docker.pkg.dev/your-project/llmops-agent-dev/llmops-agent:latest"
+cicd_service_account_email  = "llmops-cicd-dev@your-gcp-project-id.iam.gserviceaccount.com"
+
+# --- Cloud Run ----------------------------------------------------------------
+docker_image            = ""   # Set by CI/CD; leave blank for first apply
+cloud_run_min_instances = 0    # 0 = scale to zero; set 1 for prod warm start
+cloud_run_max_instances = 3    # 10 for prod
+cloud_run_cpu           = "2"
+cloud_run_memory        = "2Gi"
+
+# --- Monitoring ---------------------------------------------------------------
+monitoring_enabled = true
+alert_email        = ""   # "ops@yourcompany.com" — required for staging/prod
+
+# --- Cloud Scheduler ----------------------------------------------------------
+monitoring_pipeline_enabled = true
+master_pipeline_enabled     = false   # set true once pipeline YAMLs are in GCS
+pipeline_sa_email           = "llmops-agent-dev@your-gcp-project-id.iam.gserviceaccount.com"
+monitoring_schedule         = "0 2 * * *"    # Daily at 2am UTC
+master_pipeline_schedule    = "0 3 * * 0"    # Weekly Sunday 3am UTC
+
+# --- API Gateway (optional — enable for staging/prod) -------------------------
+api_gateway_enabled = false   # set true for production
+
+# --- Cloud Run Access Control -------------------------------------------------
+# SECURITY: Cloud Run NEVER allows allUsers (no public unauthenticated access).
+# Add SA emails of developers or testers who need to invoke Cloud Run in dev.
+# These are ONLY applied when environment = "dev". Leave empty for staging/prod.
+# To call Cloud Run as a developer without adding a SA:
+#   gcloud run services proxy llmops-agent-dev --region=us-central1
+developer_sa_emails = []   # e.g. ["dev@your-project.iam.gserviceaccount.com"]

@@ -56,9 +56,10 @@ resource "google_monitoring_alert_policy" "cloud_run_errors" {
   combiner     = "OR"
 
   conditions {
-    display_name = "Cloud Run 5xx error rate > 5%"
+    display_name = "Cloud Run 5xx error rate > 5% of total requests"
 
     condition_threshold {
+      # Numerator: count of 5xx responses
       filter = join(" AND ", [
         "resource.type=\"cloud_run_revision\"",
         "resource.labels.service_name=\"llmops-agent-${var.environment}\"",
@@ -66,8 +67,20 @@ resource "google_monitoring_alert_policy" "cloud_run_errors" {
         "metric.labels.response_code_class=\"5xx\"",
       ])
 
+      # Denominator: count of ALL responses (ratio = 5xx / total)
+      denominator_filter = join(" AND ", [
+        "resource.type=\"cloud_run_revision\"",
+        "resource.labels.service_name=\"llmops-agent-${var.environment}\"",
+        "metric.type=\"run.googleapis.com/request_count\"",
+      ])
+
+      denominator_aggregations {
+        alignment_period   = "300s"
+        per_series_aligner = "ALIGN_RATE"
+      }
+
       comparison      = "COMPARISON_GT"
-      threshold_value = 0.05
+      threshold_value = 0.05   # 5% error rate (ratio of 5xx to all requests)
       duration        = "300s"
 
       aggregations {
