@@ -71,15 +71,14 @@ def submit_pipeline(
         enable_caching=True,
     )
 
+    # Attach service account if provided
+    if service_account:
+        job_kwargs["service_account"] = service_account
+
     job = aiplatform.PipelineJob(**job_kwargs)
 
-<<<<<<< HEAD
     job.submit()
     print(f"Pipeline submitted: {display_name} -> {job.resource_name}")
-=======
-    job.submit(service_account=service_account or None)
-    print(f"Pipeline submitted: {display_name} → {job.resource_name}")
->>>>>>> origin/main
     return job.resource_name
 
 
