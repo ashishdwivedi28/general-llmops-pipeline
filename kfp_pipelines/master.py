@@ -1,4 +1,4 @@
-"""KFP — Master Pipeline (Pipeline 0).
+"""KFP - Master Pipeline (Pipeline 0).
 
 The top-level orchestrator that chains:
   1. Feature Engineering Pipeline
@@ -43,8 +43,8 @@ def parse_monitoring_result(result_json: str) -> bool:
 @dsl.pipeline(
     name="master-llmops-pipeline",
     description=(
-        "End-to-end LLMOps Master Pipeline — chains Feature Engineering → "
-        "Deployment → Monitoring with conditional re-trigger on quality degradation."
+        "End-to-end LLMOps Master Pipeline - chains Feature Engineering -> "
+        "Deployment -> Monitoring with conditional re-trigger on quality degradation."
     ),
 )
 def master_pipeline(
@@ -76,10 +76,10 @@ def master_pipeline(
     error_rate_threshold: float = 0.05,
     auto_retrigger: bool = True,
 ):
-    """Master LLMOps Pipeline — fully automated end-to-end.
+    """Master LLMOps Pipeline - fully automated end-to-end.
 
     Phases run sequentially:
-      Phase 1 (Feature Engineering) → Phase 2 (Deployment) → Phase 3 (Monitoring)
+    Phase 1 (Feature Engineering) -> Phase 2 (Deployment) -> Phase 3 (Monitoring)
       Phase 4 (Self-Healing): Diagnose + Remediate + conditional re-trigger
     """
 
@@ -116,7 +116,7 @@ def master_pipeline(
         config_yaml_path=config_yaml_path,
         serving_image=serving_image,
     ).set_display_name("phase2-register-model")
-    reg_task.after(ingest_task)  # ← CRITICAL: Phase 2 waits for Phase 1
+    reg_task.after(ingest_task)  # CRITICAL: Phase 2 waits for Phase 1
 
     eval_task = evaluate_model(
         project=project,
@@ -147,7 +147,7 @@ def master_pipeline(
         toxicity_threshold=toxicity_threshold,
         log_filter=log_filter,
     ).set_display_name("phase3-monitor-quality")
-    monitor_task.after(promote_task)  # ← CRITICAL: Phase 3 waits for Phase 2
+    monitor_task.after(promote_task)  # CRITICAL: Phase 3 waits for Phase 2
 
     degraded_check = parse_monitoring_result(
         result_json=monitor_task.output,

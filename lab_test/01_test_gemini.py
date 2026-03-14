@@ -6,12 +6,16 @@ Usage:
     python lab_test/01_test_gemini.py --project YOUR_PROJECT_ID
 """
 
-import argparse, sys, logging
+import argparse
+import sys
+import logging
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -22,10 +26,12 @@ def main():
     logger.info("Testing Gemini API — project: %s, location: %s", args.project, args.location)
 
     from google.cloud import aiplatform
+
     aiplatform.init(project=args.project, location=args.location)
     logger.info("✅ aiplatform.init() succeeded")
 
     from langchain_google_vertexai import ChatVertexAI
+
     llm = ChatVertexAI(
         model_name="gemini-2.0-flash",
         temperature=0.0,
@@ -38,6 +44,7 @@ def main():
     logger.info("Response: %s", response.content)
 
     from langchain_google_vertexai import VertexAIEmbeddings
+
     embedder = VertexAIEmbeddings(
         model_name="text-embedding-004",
         project=args.project,
@@ -48,8 +55,9 @@ def main():
     logger.info("✅ Embedding dimensions: %d", len(emb))
 
     print("\n✅ GEMINI API — ALL TESTS PASSED")
-    print(f"   Model: gemini-2.0-flash")
+    print("   Model: gemini-2.0-flash")
     print(f"   Embedding: text-embedding-004 ({len(emb)} dims)")
+
 
 if __name__ == "__main__":
     main()

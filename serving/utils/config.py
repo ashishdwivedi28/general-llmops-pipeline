@@ -15,7 +15,7 @@ class ServerConfig(BaseSettings):
     explicit env-var overrides for vector-search endpoints, models, etc.
     """
 
-    model_config = ConfigDict(env_file=".env", case_sensitive=True)
+    model_config = ConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
     # GCP
     GCP_PROJECT_ID: str = ""

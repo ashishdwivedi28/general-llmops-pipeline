@@ -1,6 +1,6 @@
-"""KFP — Fine-Tuning Pipeline.
+"""KFP - Fine-Tuning Pipeline.
 
-Vertex AI Pipeline: prepare dataset → train → evaluate fine-tuned model.
+Vertex AI Pipeline: prepare dataset -> train -> evaluate fine-tuned model.
 """
 
 from kfp import dsl
@@ -21,7 +21,7 @@ def prepare_finetuning_dataset(
     test_split_ratio: float,
     output_gcs_path: str,
 ) -> str:
-    """Query BQ for high-rated interactions → write train/test JSONL to GCS."""
+    """Query BQ for high-rated interactions -> write train/test JSONL to GCS."""
     import json
 
     from google.cloud import bigquery, storage
@@ -239,7 +239,7 @@ def fine_tuning_pipeline(
     relevance_threshold: float = 0.75,
     faithfulness_threshold: float = 0.70,
 ):
-    """Fine-Tuning Pipeline — runs on Vertex AI Pipelines."""
+    """Fine-Tuning Pipeline - runs on Vertex AI Pipelines."""
 
     # Step 1: Prepare dataset
     prep_task = prepare_finetuning_dataset(

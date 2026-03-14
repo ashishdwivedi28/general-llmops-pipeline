@@ -94,12 +94,8 @@ class TestModelsConfig:
 
     def test_full_config(self):
         cfg = ModelsConfig(
-            chat=ModelTypeConfig(
-                primary=ModelSpec(name="vertex_ai/gemini-2.0-flash")
-            ),
-            embedding=ModelTypeConfig(
-                primary=ModelSpec(name="vertex_ai/text-embedding-004")
-            ),
+            chat=ModelTypeConfig(primary=ModelSpec(name="vertex_ai/gemini-2.0-flash")),
+            embedding=ModelTypeConfig(primary=ModelSpec(name="vertex_ai/text-embedding-004")),
             evaluation=ModelTypeConfig(
                 primary=ModelSpec(name="vertex_ai/gemini-2.0-flash", temperature=0.0)
             ),

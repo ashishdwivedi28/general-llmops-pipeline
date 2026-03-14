@@ -4,20 +4,29 @@ Usage:
     python lab_test/02_test_gcs.py --project YOUR_PROJECT_ID --bucket YOUR_BUCKET
 """
 
-import argparse, sys, logging
+import argparse
+import sys
+import logging
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", required=True)
-    parser.add_argument("--bucket", required=True, help="GCS bucket name (will be created if missing)")
+    parser.add_argument(
+        "--bucket",
+        required=True,
+        help="GCS bucket name (will be created if missing)",
+    )
     args = parser.parse_args()
 
     from google.cloud import storage
+
     client = storage.Client(project=args.project)
     logger.info("GCS client initialised for project: %s", args.project)
 
@@ -47,9 +56,10 @@ def main():
     blob.delete()
     logger.info("✅ File deleted")
 
-    print(f"\n✅ GCS — ALL TESTS PASSED")
+    print("\n✅ GCS — ALL TESTS PASSED")
     print(f"   Bucket: gs://{args.bucket}")
-    print(f"   Operations: create, write, read, list, delete")
+    print("   Operations: create, write, read, list, delete")
+
 
 if __name__ == "__main__":
     main()

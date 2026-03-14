@@ -22,12 +22,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import os
 import sys
-import time
+from typing import TYPE_CHECKING
 from pathlib import Path
+
+if TYPE_CHECKING:
+    from lab_test.local_vector_db import LocalFaissVectorDB
 
 # Ensure project root is on path
 ROOT = Path(__file__).resolve().parent.parent
@@ -46,39 +48,46 @@ logger = logging.getLogger("lab_test")
 
 RESULTS: dict[str, str] = {}
 
+
 def ok(step: str, msg: str = ""):
     RESULTS[step] = f"✅  PASS  {msg}"
     logger.info("✅  PASS  [%s] %s", step, msg)
+
 
 def fail(step: str, msg: str = ""):
     RESULTS[step] = f"❌  FAIL  {msg}"
     logger.error("❌  FAIL  [%s] %s", step, msg)
 
+
 def skip(step: str, msg: str = ""):
     RESULTS[step] = f"⏭️   SKIP  {msg}"
     logger.info("⏭️   SKIP  [%s] %s", step, msg)
 
+
 def print_summary():
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("  LAB TEST RESULTS SUMMARY")
-    print("="*60)
+    print("=" * 60)
     for step, result in RESULTS.items():
         print(f"  {step:30s}  {result}")
     total = len(RESULTS)
     passed = sum(1 for v in RESULTS.values() if "PASS" in v)
-    print("="*60)
+    print("=" * 60)
     print(f"  Passed: {passed} / {total}")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
+
 
 # --------------------------------------------------------------------------- #
 # Step 1: GCP Connectivity                                                      #
 # --------------------------------------------------------------------------- #
 
+
 def step1_gcp_connectivity(project: str, location: str):
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info("STEP 1: GCP Connectivity")
     try:
         from google.cloud import aiplatform
+
         aiplatform.init(project=project, location=location)
         logger.info("google-cloud-aiplatform initialised for project: %s", project)
         ok("Step 1 — GCP connectivity", f"project={project}")
@@ -86,15 +95,18 @@ def step1_gcp_connectivity(project: str, location: str):
         fail("Step 1 — GCP connectivity", str(e))
         raise SystemExit(1)
 
+
 # --------------------------------------------------------------------------- #
 # Step 2: GCS Basic Operations                                                  #
 # --------------------------------------------------------------------------- #
 
+
 def step2_gcs(project: str, bucket: str):
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info("STEP 2: Cloud Storage")
     try:
         from google.cloud import storage
+
         client = storage.Client(project=project)
 
         # Create bucket if not exists
@@ -120,15 +132,18 @@ def step2_gcs(project: str, bucket: str):
     except Exception as e:
         fail("Step 2 — GCS read/write", str(e))
 
+
 # --------------------------------------------------------------------------- #
 # Step 3: Gemini API                                                            #
 # --------------------------------------------------------------------------- #
 
+
 def step3_gemini(project: str, location: str):
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info("STEP 3: Gemini API")
     try:
         from langchain_google_vertexai import ChatVertexAI
+
         llm = ChatVertexAI(
             model_name="gemini-2.0-flash",
             temperature=0.0,
@@ -142,12 +157,16 @@ def step3_gemini(project: str, location: str):
     except Exception as e:
         fail("Step 3 — Gemini API", str(e))
 
+
 # --------------------------------------------------------------------------- #
 # Step 4: Feature Engineering (Local FAISS)                                     #
 # --------------------------------------------------------------------------- #
 
-def step4_feature_engineering(project: str, location: str, docs_path: str) -> "LocalFaissVectorDB | None":
-    logger.info("="*50)
+
+def step4_feature_engineering(
+    project: str, location: str, docs_path: str
+) -> LocalFaissVectorDB | None:
+    logger.info("=" * 50)
     logger.info("STEP 4: Feature Engineering (Local FAISS)")
     try:
         from lab_test.local_vector_db import LocalFaissVectorDB
@@ -172,19 +191,26 @@ def step4_feature_engineering(project: str, location: str, docs_path: str) -> "L
         # Save locally
         vdb.save_local("/tmp/lab_faiss_index")
 
-        ok("Step 4 — Feature Engineering (FAISS)",
-           f"docs={result['num_documents']}, chunks={result['num_chunks']}, query_results={len(results)}")
+        ok(
+            "Step 4 — Feature Engineering (FAISS)",
+            (
+                f"docs={result['num_documents']}, chunks={result['num_chunks']}, "
+                f"query_results={len(results)}"
+            ),
+        )
         return vdb
     except Exception as e:
         fail("Step 4 — Feature Engineering (FAISS)", str(e))
         return None
 
+
 # --------------------------------------------------------------------------- #
 # Step 5: Generate QA Dataset                                                   #
 # --------------------------------------------------------------------------- #
 
+
 def step5_generate_dataset(vdb, project: str, location: str):
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info("STEP 5: Generate QA Dataset (Gemini)")
     try:
         if vdb is None or len(vdb.chunks) == 0:
@@ -194,8 +220,9 @@ def step5_generate_dataset(vdb, project: str, location: str):
         from langchain_google_vertexai import ChatVertexAI
         import json
 
-        llm = ChatVertexAI(model_name="gemini-2.0-flash", temperature=0.7,
-                           project=project, location=location)
+        llm = ChatVertexAI(
+            model_name="gemini-2.0-flash", temperature=0.7, project=project, location=location
+        )
 
         # Only generate for first 2 chunks to stay within lab quota
         qa_pairs = []
@@ -227,12 +254,14 @@ def step5_generate_dataset(vdb, project: str, location: str):
         fail("Step 5 — QA Dataset generation", str(e))
         return []
 
+
 # --------------------------------------------------------------------------- #
 # Step 6: Deployment Evaluation (Gemini-as-Judge)                               #
 # --------------------------------------------------------------------------- #
 
+
 def step6_evaluation(qa_pairs: list, vdb, project: str, location: str):
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info("STEP 6: Deployment Evaluation (Gemini-as-Judge)")
     try:
         if not qa_pairs or vdb is None:
@@ -242,8 +271,9 @@ def step6_evaluation(qa_pairs: list, vdb, project: str, location: str):
         from langchain_google_vertexai import ChatVertexAI
         import json
 
-        llm = ChatVertexAI(model_name="gemini-2.0-flash", temperature=0.0,
-                           project=project, location=location)
+        llm = ChatVertexAI(
+            model_name="gemini-2.0-flash", temperature=0.0, project=project, location=location
+        )
 
         scores = {"answer_relevance": [], "faithfulness": [], "toxicity": []}
         for pair in qa_pairs[:3]:  # Limit to 3 for lab
@@ -278,38 +308,59 @@ def step6_evaluation(qa_pairs: list, vdb, project: str, location: str):
             except Exception:
                 pass
 
-        avgs = {k: sum(v)/len(v) if v else 0.0 for k, v in scores.items()}
+        avgs = {k: sum(v) / len(v) if v else 0.0 for k, v in scores.items()}
         logger.info("Evaluation scores: %s", avgs)
 
         decision = "PASS" if avgs["answer_relevance"] >= 0.6 else "BORDERLINE"
-        ok("Step 6 — Evaluation (Gemini-as-Judge)",
-           f"relevance={avgs['answer_relevance']:.2f}, faithfulness={avgs['faithfulness']:.2f}, decision={decision}")
+        ok(
+            "Step 6 — Evaluation (Gemini-as-Judge)",
+            (
+                f"relevance={avgs['answer_relevance']:.2f}, "
+                f"faithfulness={avgs['faithfulness']:.2f}, decision={decision}"
+            ),
+        )
     except Exception as e:
         fail("Step 6 — Evaluation", str(e))
+
 
 # --------------------------------------------------------------------------- #
 # Step 7: Start Serving Layer (local)                                           #
 # --------------------------------------------------------------------------- #
 
+
 def step7_serving(project: str, location: str, port: int = 8080):
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info("STEP 7: Serving Layer (local FastAPI)")
     try:
-        import subprocess, time, urllib.request
+        import subprocess
+        import time
+        import urllib.request
 
         # Set env vars for the server
         env = os.environ.copy()
-        env.update({
-            "GCP_PROJECT_ID": project,
-            "GCP_LOCATION": location,
-            "MODEL_NAME": "gemini-2.0-flash",
-            "PORT": str(port),
-            "RAG_CORPUS_RESOURCE": "",  # Empty = no remote RAG corpus needed for lab
-        })
+        env.update(
+            {
+                "GCP_PROJECT_ID": project,
+                "GCP_LOCATION": location,
+                "MODEL_NAME": "gemini-2.0-flash",
+                "PORT": str(port),
+                "RAG_CORPUS_RESOURCE": "",  # Empty = no remote RAG corpus needed for lab
+            }
+        )
 
         proc = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "serving.server:app",
-             "--host", "0.0.0.0", "--port", str(port), "--timeout-keep-alive", "5"],
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "serving.server:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                str(port),
+                "--timeout-keep-alive",
+                "5",
+            ],
             env=env,
             cwd=str(ROOT),
             stdout=subprocess.PIPE,
@@ -333,17 +384,25 @@ def step7_serving(project: str, location: str, port: int = 8080):
         fail("Step 7 — Serving layer", str(e))
         return None
 
+
 # --------------------------------------------------------------------------- #
 # Step 8: End-to-End Chat Test                                                  #
 # --------------------------------------------------------------------------- #
 
+
 def step8_chat_test(port: int = 8080):
-    logger.info("="*50)
+    logger.info("=" * 50)
     logger.info("STEP 8: End-to-End Chat Test")
     try:
-        import urllib.request, json
+        import urllib.request
+        import json
 
-        payload = json.dumps({"query": "Hello, what can you help me with?", "session_id": "lab-test"}).encode()
+        payload = json.dumps(
+            {
+                "query": "Hello, what can you help me with?",
+                "session_id": "lab-test",
+            }
+        ).encode()
         req = urllib.request.Request(
             f"http://localhost:{port}/chat",
             data=payload,
@@ -356,13 +415,18 @@ def step8_chat_test(port: int = 8080):
         latency = data.get("latency_ms", 0)
         assert response_text, "Empty chat response"
         logger.info("Chat response (%d ms): %s...", latency, response_text[:100])
-        ok("Step 8 — End-to-end chat", f"latency={latency:.0f}ms, response_len={len(response_text)}")
+        ok(
+            "Step 8 — End-to-end chat",
+            f"latency={latency:.0f}ms, response_len={len(response_text)}",
+        )
     except Exception as e:
         fail("Step 8 — End-to-end chat", str(e))
+
 
 # --------------------------------------------------------------------------- #
 # Helpers                                                                       #
 # --------------------------------------------------------------------------- #
+
 
 def _ensure_sample_docs(docs_path: str):
     """Create sample docs if the directory is empty."""
@@ -404,9 +468,11 @@ def _ensure_sample_docs(docs_path: str):
         )
         logger.info("Created 3 sample documents in %s", docs_path)
 
+
 # --------------------------------------------------------------------------- #
 # Main                                                                          #
 # --------------------------------------------------------------------------- #
+
 
 def main():
     parser = argparse.ArgumentParser(description="LLMOps Lab End-to-End Test Runner")
@@ -416,7 +482,11 @@ def main():
     parser.add_argument("--docs-path", default="data/documents/")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--step", type=int, default=0, help="Run only this step (0 = all)")
-    parser.add_argument("--skip-gcs", action="store_true", help="Skip GCS step (if bucket not accessible)")
+    parser.add_argument(
+        "--skip-gcs",
+        action="store_true",
+        help="Skip GCS step (if bucket not accessible)",
+    )
     parser.add_argument("--skip-serving", action="store_true", help="Skip serving/chat steps")
     args = parser.parse_args()
 

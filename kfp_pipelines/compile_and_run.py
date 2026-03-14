@@ -35,7 +35,7 @@ def compile_pipelines(output_dir: str = "compiled_pipelines") -> dict[str, str]:
             package_path=output_path,
         )
         paths[name] = output_path
-        print(f"Compiled: {name} → {output_path}")
+        print(f"Compiled: {name} -> {output_path}")
     return paths
 
 
@@ -71,10 +71,14 @@ def submit_pipeline(
         enable_caching=True,
     )
 
+    # Attach service account if provided
+    if service_account:
+        job_kwargs["service_account"] = service_account
+
     job = aiplatform.PipelineJob(**job_kwargs)
 
-    job.submit(service_account=service_account or None)
-    print(f"Pipeline submitted: {display_name} → {job.resource_name}")
+    job.submit()
+    print(f"Pipeline submitted: {display_name} -> {job.resource_name}")
     return job.resource_name
 
 
@@ -101,7 +105,7 @@ def main():
     paths = compile_pipelines(args.output_dir)
 
     if args.compile_only:
-        print("Compile-only mode — done.")
+        print("Compile-only mode - done.")
         return
 
     if not args.project or not args.bucket:

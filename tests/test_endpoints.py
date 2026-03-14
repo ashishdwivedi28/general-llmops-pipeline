@@ -6,7 +6,6 @@ They test the full request/response cycle without hitting real GCP services.
 
 from __future__ import annotations
 
-import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 

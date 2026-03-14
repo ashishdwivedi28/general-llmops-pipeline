@@ -1,6 +1,6 @@
-"""KFP — Deployment Pipeline.
+"""KFP - Deployment Pipeline.
 
-Vertex AI Pipeline that runs RegisterModel → EvaluateAndDeploy.
+Vertex AI Pipeline that runs RegisterModel -> EvaluateAndDeploy.
 """
 
 from kfp import dsl
@@ -70,7 +70,7 @@ def evaluate_model(
 
     aiplatform.init(project=project, location=location)
 
-    # Handle empty eval dataset — auto-pass when no dataset is configured
+    # Handle empty eval dataset - auto-pass when no dataset is configured
     if not eval_dataset_gcs or not eval_dataset_gcs.startswith("gs://"):
         return json.dumps(
             {
@@ -180,7 +180,7 @@ def deployment_pipeline(
     faithfulness_threshold: float = 0.65,
     toxicity_threshold: float = 0.10,
 ):
-    """Deployment Pipeline — runs on Vertex AI Pipelines."""
+    """Deployment Pipeline - runs on Vertex AI Pipelines."""
     # Step 1: Register
     reg_task = register_model(
         project=project,
