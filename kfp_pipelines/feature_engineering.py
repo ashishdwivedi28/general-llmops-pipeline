@@ -1,6 +1,6 @@
-"""KFP — Feature Engineering Pipeline.
+"""KFP - Feature Engineering Pipeline.
 
-Vertex AI Pipeline that runs CreateVectorDB → IngestDocuments.
+Vertex AI Pipeline that runs CreateVectorDB -> IngestDocuments.
 """
 
 from kfp import dsl
@@ -125,7 +125,7 @@ def ingest_documents(
     chunk_overlap: int,
     index_resource_name: str,
 ) -> str:
-    """Load documents → chunk → embed → upload to Vector Search."""
+    """Load documents -> chunk -> embed -> upload to Vector Search."""
     import json
     import tempfile
 
@@ -192,7 +192,7 @@ def feature_engineering_pipeline(
     chunk_size: int = 1000,
     chunk_overlap: int = 200,
 ):
-    """Feature Engineering Pipeline — runs on Vertex AI Pipelines."""
+    """Feature Engineering Pipeline - runs on Vertex AI Pipelines."""
     # Step 1: Create Vector DB
     db_task = create_vector_db(
         project=project,

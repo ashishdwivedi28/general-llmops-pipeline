@@ -72,10 +72,13 @@ def test_prompt_functions():
 
 def test_prompt_functions_with_registry(tmp_path, monkeypatch):
     """Test prompt generation with a registry configured."""
-    monkeypatch.setattr(
-        "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
+    monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
+    from llmops_pipeline.io.prompt_registry import (
+        PromptRegistry,
+        PromptRegistryConfig,
+        PromptVersion,
+        save_prompt,
     )
-    from llmops_pipeline.io.prompt_registry import PromptRegistry, PromptRegistryConfig, PromptVersion, save_prompt
     from serving.prompt import set_prompt_registry, get_system_prompt
 
     save_prompt(
@@ -84,9 +87,7 @@ def test_prompt_functions_with_registry(tmp_path, monkeypatch):
         bucket_name="__local__",
     )
     registry = PromptRegistry(
-        config=PromptRegistryConfig(
-            app_id="test-app", bucket_name="__local__", active_version=1
-        )
+        config=PromptRegistryConfig(app_id="test-app", bucket_name="__local__", active_version=1)
     )
     set_prompt_registry(registry)
     prompt = get_system_prompt()

@@ -4,11 +4,15 @@ Runs a mini RAG loop: query → FAISS retrieval → Gemini answer.
 
 Usage:
     python lab_test/04_test_rag_pipeline.py --project YOUR_PROJECT_ID
-    python lab_test/04_test_rag_pipeline.py --project YOUR_PROJECT_ID --query "What is the leave policy?"
+    python lab_test/04_test_rag_pipeline.py --project YOUR_PROJECT_ID \
+        --query "What is the leave policy?"
 """
 
-import argparse, sys, logging
+import argparse
+import sys
+import logging
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(message)s", datefmt="%H:%M:%S")
@@ -23,6 +27,7 @@ Context:
 Question: {question}
 
 Answer:"""
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -65,11 +70,11 @@ def main():
     # Retrieve context
     logger.info("Query: %s", args.query)
     results = vdb.query(args.query, top_k=args.top_k)
-    context = "\n\n".join([f"[Chunk {i+1}] {r['text']}" for i, r in enumerate(results)])
+    context = "\n\n".join([f"[Chunk {i + 1}] {r['text']}" for i, r in enumerate(results)])
 
     logger.info("Retrieved %d chunks", len(results))
     for i, r in enumerate(results):
-        logger.info("  Chunk %d (score=%.3f): %s...", i+1, r["score"], r["text"][:60])
+        logger.info("  Chunk %d (score=%.3f): %s...", i + 1, r["score"], r["text"][:60])
 
     # Generate answer
     llm = ChatVertexAI(
@@ -81,14 +86,15 @@ def main():
     prompt = RAG_PROMPT.format(context=context, question=args.query)
     response = llm.invoke(prompt)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("RAG PIPELINE RESULT")
-    print("="*60)
+    print("=" * 60)
     print(f"Query:    {args.query}")
     print(f"Context chunks retrieved: {len(results)}")
     print(f"\nAnswer:\n{response.content}")
-    print("="*60)
+    print("=" * 60)
     print("\n✅ RAG PIPELINE TEST PASSED")
+
 
 if __name__ == "__main__":
     main()

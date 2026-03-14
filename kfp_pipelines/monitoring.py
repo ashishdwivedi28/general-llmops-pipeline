@@ -1,4 +1,4 @@
-"""KFP — Monitoring Pipeline.
+"""KFP - Monitoring Pipeline.
 
 Vertex AI Pipeline that evaluates production quality from Cloud Logging traces,
 diagnoses root causes, and dispatches automated remediation.
@@ -24,7 +24,7 @@ def monitor_production_quality(
     toxicity_threshold: float,
     log_filter: str,
 ) -> str:
-    """Pull prod traces → evaluate with Gemini-as-judge → return degradation signal."""
+    """Pull prod traces -> evaluate with Gemini-as-judge -> return degradation signal."""
     import json
     from datetime import datetime, timedelta, timezone
 
@@ -295,7 +295,7 @@ def monitoring_pipeline(
     error_rate_threshold: float = 0.05,
     auto_retrigger: bool = True,
 ):
-    """Monitoring Pipeline — runs on Vertex AI Pipelines.
+    """Monitoring Pipeline - runs on Vertex AI Pipelines.
 
     Phase 3 steps:
       1. monitor_production_quality  (eval from Cloud Logging)

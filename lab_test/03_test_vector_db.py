@@ -5,12 +5,16 @@ Usage:
     python lab_test/03_test_vector_db.py --project YOUR_PROJECT_ID --docs-path data/documents/
 """
 
-import argparse, sys, logging
+import argparse
+import sys
+import logging
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -58,14 +62,14 @@ def main():
         "What is the training budget?",
     ]
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("QUERY RESULTS")
-    print("="*50)
+    print("=" * 50)
     for query in test_queries:
         results = vdb.query(query, top_k=2)
         print(f"\nQuery: {query}")
         for i, r in enumerate(results):
-            print(f"  [{i+1}] score={r['score']:.3f} — {r['text'][:80]}...")
+            print(f"  [{i + 1}] score={r['score']:.3f} — {r['text'][:80]}...")
 
     # Save locally
     vdb.save_local("/tmp/lab_faiss_index")
@@ -77,11 +81,12 @@ def main():
     assert vdb2.index.ntotal == vdb.index.ntotal, "Index size mismatch after reload"
     logger.info("✅ Index reload OK: %d vectors", vdb2.index.ntotal)
 
-    print(f"\n✅ VECTOR DB — ALL TESTS PASSED")
+    print("\n✅ VECTOR DB — ALL TESTS PASSED")
     print(f"   Documents: {result['num_documents']}")
     print(f"   Chunks: {result['num_chunks']}")
     print(f"   Index size: {vdb.index.ntotal} vectors")
-    print(f"   Saved to: /tmp/lab_faiss_index")
+    print("   Saved to: /tmp/lab_faiss_index")
+
 
 if __name__ == "__main__":
     main()

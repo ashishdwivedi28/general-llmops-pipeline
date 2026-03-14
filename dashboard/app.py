@@ -13,7 +13,6 @@ Launch:  streamlit run dashboard/app.py
 
 from __future__ import annotations
 
-import json
 import os
 from datetime import datetime, timezone
 
@@ -128,7 +127,14 @@ elif page == "Pipeline Manifest":
         st.json(data)
 
         # Section breakdown
-        for section in ["feature_engineering", "deployment", "monitoring", "fine_tuning", "remediation"]:
+        sections = [
+            "feature_engineering",
+            "deployment",
+            "monitoring",
+            "fine_tuning",
+            "remediation",
+        ]
+        for section in sections:
             if section in data:
                 with st.expander(f"Section: {section}", expanded=False):
                     st.json(data[section])

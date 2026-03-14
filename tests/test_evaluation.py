@@ -6,7 +6,6 @@ Tests task detection, model routing integration, and prompt registry logic.
 from __future__ import annotations
 
 import os
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -106,7 +105,9 @@ class TestTaskDetection:
     def test_llm_classifier_fallback(self, app_config_path: Path) -> None:
         from serving.task_detection import TaskDetector
 
-        mock_classifier = lambda q: "onboarding"
+        def mock_classifier(q: str) -> str:
+            return "onboarding"
+
         detector = TaskDetector(
             app_config_path,
             detection_method="llm",
@@ -119,7 +120,9 @@ class TestTaskDetection:
     def test_keyword_and_llm_prefers_keyword(self, app_config_path: Path) -> None:
         from serving.task_detection import TaskDetector
 
-        mock_classifier = lambda q: "chitchat"
+        def mock_classifier(q: str) -> str:
+            return "chitchat"
+
         detector = TaskDetector(
             app_config_path,
             detection_method="keyword_and_llm",

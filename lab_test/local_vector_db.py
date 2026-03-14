@@ -8,7 +8,6 @@ This is a DROP-IN replacement — same interface as VertexVectorSearch.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import pickle
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import faiss
-    import numpy as np
+
     FAISS_AVAILABLE = True
 except ImportError:
     FAISS_AVAILABLE = False
@@ -55,7 +54,7 @@ class LocalFaissVectorDB:
 
         # FAISS index (inner product ≈ cosine similarity for normalised vectors)
         self.index: T.Any = faiss.IndexFlatIP(embedding_dimensions)
-        self.chunks: list[str] = []      # text of each chunk
+        self.chunks: list[str] = []  # text of each chunk
         self.metadata: list[dict] = []  # source metadata per chunk
 
         # Lazy init embeddings
@@ -65,6 +64,7 @@ class LocalFaissVectorDB:
         """Lazy-load Vertex AI Embeddings (free in lab)."""
         if self._embeddings is None:
             from langchain_google_vertexai import VertexAIEmbeddings
+
             self._embeddings = VertexAIEmbeddings(
                 model_name=self.embedding_model,
                 project=self.project,
@@ -130,7 +130,11 @@ class LocalFaissVectorDB:
         self.chunks.extend(texts)
         self.metadata.extend([c.metadata for c in chunks])
 
-        logger.info("Inserted %d vectors into FAISS index (total: %d)", len(texts), self.index.ntotal)
+        logger.info(
+            "Inserted %d vectors into FAISS index (total: %d)",
+            len(texts),
+            self.index.ntotal,
+        )
         return {"num_documents": len(docs), "num_chunks": len(chunks)}
 
     def query(self, query_text: str, top_k: int = 5) -> list[dict]:
@@ -159,17 +163,17 @@ class LocalFaissVectorDB:
         results = []
         for score, idx in zip(scores[0], indices[0]):
             if idx != -1:
-                results.append({
-                    "text": self.chunks[idx],
-                    "score": float(score),
-                    "metadata": self.metadata[idx],
-                })
+                results.append(
+                    {
+                        "text": self.chunks[idx],
+                        "score": float(score),
+                        "metadata": self.metadata[idx],
+                    }
+                )
         return results
 
     def save_to_gcs(self, gcs_bucket: str, prefix: str = "lab-faiss/") -> str:
         """Save FAISS index + chunk data to GCS for reuse across lab sessions."""
-        import pickle
-        import numpy as np
         from google.cloud import storage
 
         # Serialise FAISS index
@@ -191,7 +195,6 @@ class LocalFaissVectorDB:
 
     def load_from_gcs(self, gcs_bucket: str, prefix: str = "lab-faiss/") -> bool:
         """Load FAISS index + chunk data from GCS."""
-        import pickle
         from google.cloud import storage
 
         client = storage.Client(project=self.project)
@@ -218,7 +221,6 @@ class LocalFaissVectorDB:
 
     def save_local(self, path: str = "/tmp/lab_faiss") -> None:
         """Save FAISS index locally (no GCS needed)."""
-        import pickle
         os.makedirs(path, exist_ok=True)
         faiss.write_index(self.index, os.path.join(path, "index.faiss"))
         with open(os.path.join(path, "meta.pkl"), "wb") as f:
@@ -227,7 +229,6 @@ class LocalFaissVectorDB:
 
     def load_local(self, path: str = "/tmp/lab_faiss") -> bool:
         """Load FAISS index from local disk."""
-        import pickle
         idx_path = os.path.join(path, "index.faiss")
         meta_path = os.path.join(path, "meta.pkl")
         if not os.path.exists(idx_path):

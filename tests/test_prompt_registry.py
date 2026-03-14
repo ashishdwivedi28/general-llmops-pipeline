@@ -21,8 +21,6 @@ from llmops_pipeline.io.prompt_registry import (
     PromptRegistryConfig,
     PromptVersion,
     _default_prompt,
-    _list_local_versions,
-    _local_prompt_dir,
     load_prompt,
     list_prompt_versions,
     resolve_variables,
@@ -89,9 +87,7 @@ class TestLocalPromptIO:
 
     def test_save_and_load_local(self, tmp_path, monkeypatch):
         """Round-trip save + load via local files."""
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         prompt = PromptVersion(
             version=2,
@@ -111,9 +107,7 @@ class TestLocalPromptIO:
 
     def test_load_nonexistent_returns_default(self, tmp_path, monkeypatch):
         """Loading a missing version returns the default prompt."""
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         loaded = load_prompt(99, app_id="test-app", bucket_name="__local__")
         assert loaded.version == 99
@@ -121,9 +115,7 @@ class TestLocalPromptIO:
 
     def test_save_multiple_versions(self, tmp_path, monkeypatch):
         """Save multiple versions and verify they coexist."""
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         for v in [1, 2, 3]:
             save_prompt(
@@ -147,9 +139,7 @@ class TestListVersions:
     """Test listing available prompt versions."""
 
     def test_list_local_versions(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         for v in [3, 1, 5]:
             save_prompt(
@@ -162,9 +152,7 @@ class TestListVersions:
         assert versions == [1, 3, 5]
 
     def test_list_empty(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
         versions = list_prompt_versions(app_id="empty-app", bucket_name="__local__")
         assert versions == []
 
@@ -246,9 +234,7 @@ class TestPromptRegistry:
     """Test the high-level PromptRegistry facade."""
 
     def test_get_active_prompt(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         # Save a prompt
         save_prompt(
@@ -270,9 +256,7 @@ class TestPromptRegistry:
         assert prompt.system_prompt == "Registry prompt v2."
 
     def test_get_system_prompt(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         save_prompt(
             PromptVersion(
@@ -285,18 +269,14 @@ class TestPromptRegistry:
         )
 
         registry = PromptRegistry(
-            config=PromptRegistryConfig(
-                app_id="sys-app", bucket_name="__local__", active_version=1
-            )
+            config=PromptRegistryConfig(app_id="sys-app", bucket_name="__local__", active_version=1)
         )
 
         sp = registry.get_system_prompt()
         assert sp == "Hello World!"
 
     def test_caching(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         save_prompt(
             PromptVersion(version=1, system_prompt="Cached"),
@@ -323,9 +303,7 @@ class TestPromptRegistry:
         assert p3.system_prompt == "Cached"
 
     def test_list_versions(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         for v in [1, 2, 3]:
             save_prompt(
@@ -335,16 +313,12 @@ class TestPromptRegistry:
             )
 
         registry = PromptRegistry(
-            config=PromptRegistryConfig(
-                app_id="list-reg-app", bucket_name="__local__"
-            )
+            config=PromptRegistryConfig(app_id="list-reg-app", bucket_name="__local__")
         )
         assert registry.list_versions() == [1, 2, 3]
 
     def test_load_all_versions(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         for v in [1, 2]:
             save_prompt(
@@ -354,9 +328,7 @@ class TestPromptRegistry:
             )
 
         registry = PromptRegistry(
-            config=PromptRegistryConfig(
-                app_id="all-app", bucket_name="__local__"
-            )
+            config=PromptRegistryConfig(app_id="all-app", bucket_name="__local__")
         )
         all_prompts = registry.load_all_versions()
         assert len(all_prompts) == 2
@@ -364,9 +336,7 @@ class TestPromptRegistry:
         assert all_prompts[1].version == 2
 
     def test_get_tool_instructions(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path
-        )
+        monkeypatch.setattr("llmops_pipeline.io.prompt_registry._LOCAL_DIR", tmp_path)
 
         save_prompt(
             PromptVersion(
@@ -402,9 +372,7 @@ class TestGCSPromptOperations:
         mock_client.bucket.return_value = mock_bucket
         mock_bucket.blob.return_value = mock_blob
 
-        with patch(
-            "llmops_pipeline.io.prompt_registry.storage.Client", return_value=mock_client
-        ):
+        with patch("llmops_pipeline.io.prompt_registry.storage.Client", return_value=mock_client):
             prompt = PromptVersion(version=5, system_prompt="GCS prompt")
             uri = save_prompt(
                 prompt,
@@ -431,9 +399,7 @@ class TestGCSPromptOperations:
         mock_blob.exists.return_value = True
         mock_blob.download_as_text.return_value = yaml.dump(prompt_data)
 
-        with patch(
-            "llmops_pipeline.io.prompt_registry.storage.Client", return_value=mock_client
-        ):
+        with patch("llmops_pipeline.io.prompt_registry.storage.Client", return_value=mock_client):
             loaded = load_prompt(
                 3,
                 app_id="gcs-app",
@@ -451,9 +417,7 @@ class TestGCSPromptOperations:
         mock_bucket.blob.return_value = mock_blob
         mock_blob.exists.return_value = False
 
-        with patch(
-            "llmops_pipeline.io.prompt_registry.storage.Client", return_value=mock_client
-        ):
+        with patch("llmops_pipeline.io.prompt_registry.storage.Client", return_value=mock_client):
             loaded = load_prompt(
                 99,
                 app_id="gcs-app",
